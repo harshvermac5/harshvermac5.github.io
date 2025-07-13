@@ -1,405 +1,326 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
-    <title>Harsh Verma's Portfolio</title>
-    <link rel="icon" href="assets/png/fav_icon.png" />
-    <meta name="description" content="Portfolio Template for Developer" />
 
-    <link rel="stylesheet" href="css/style.css" />
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Harsh Verma | Security Engineer</title>
+  <style>
+    :root {
+      --bg-light: #f9f9f9;
+      --fg-light: #111;
+      --card-light: #fff;
+      --accent-light: #0055ff;
+      --muted-light: #666;
 
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Source+Sans+Pro:wght@400;600;700;900&display=swap"
-      rel="stylesheet"
-    />
-  </head>
-  <body>
-    <header class="header">
-      <div class="header__content">
-        <div class="header__logo-container">
-          <div class="header__logo-img-cont">
-            <img
-              src="assets/jpeg/Hands on Chin.jpg"
-              alt="Harsh Verma Logo Image"
-              class="header__logo-img"
-            />
-          </div>
-          <span class="header__logo-sub">Harsh Verma</span>
-        </div>
-        <div class="header__main">
-          <ul class="header__links">
-            <li class="header__link-wrapper">
-              <a href="./index.html" class="header__link"> Home </a>
-            </li>
-            <li class="header__link-wrapper">
-              <a href="./index.html#about" class="header__link">About </a>
-            </li>
-            <li class="header__link-wrapper">
-              <a href="indexblog.html" target="_blank" class="header__link">Blogs</a>
-            </li>
-            <li class="header__link-wrapper">
-              <a href="indexblog.html" target="_blank" class="header__link">Assets</a>
-            </li>
-            <li class="header__link-wrapper">
-              <a href="./index.html#contact" class="header__link"> Contact </a>
-            </li>
-          </ul>
-          <div class="header__main-ham-menu-cont">
-            <img
-              src="./assets/svg/ham-menu.svg"
-              alt="hamburger menu"
-              class="header__main-ham-menu"
-            />
-            <img
-              src="./assets/svg/ham-menu-close.svg"
-              alt="hamburger menu close"
-              class="header__main-ham-menu-close d-none"
-            />
-          </div>
-          
-        </div>
+      --bg-dark: #0e1111;
+      --fg-dark: #e6edf3;
+      --card-dark: #1a1d1d;
+      --accent-dark: #00ff99;
+      --muted-dark: #999;
+
+      --transition: 0.3s ease;
+    }
+
+    body {
+      margin: 0;
+      font-family: Consolas, "Courier New", monospace;
+      transition: background-color var(--transition), color var(--transition);
+    }
+
+    #wrapper {
+      background-color: var(--bg-dark);
+      color: var(--fg-dark);
+      padding: 2rem;
+    }
+
+    #wrapper.light {
+      background-color: var(--bg-light);
+      color: var(--fg-light);
+    }
+
+    header,
+    footer {
+      border-bottom: 1px solid var(--muted-dark);
+      margin-bottom: 2rem;
+      padding-bottom: 1rem;
+    }
+
+    #wrapper.light header,
+    #wrapper.light footer {
+      border-color: var(--muted-light);
+    }
+
+    footer {
+      border-top: 1px solid var(--muted-dark);
+      margin-top: 2rem;
+      padding-top: 1rem;
+      font-size: 0.9rem;
+      color: var(--muted-dark);
+    }
+
+    #wrapper.light footer {
+      color: var(--muted-light);
+    }
+
+    h1,
+    h2 {
+      color: var(--accent-dark);
+    }
+
+    #wrapper.light h1,
+    #wrapper.light h2 {
+      color: var(--accent-light);
+    }
+
+    a {
+      color: var(--accent-dark);
+      text-decoration: none;
+    }
+
+    #wrapper.light a {
+      color: var(--accent-light);
+    }
+
+    a:hover {
+      text-decoration: underline;
+    }
+
+    ul {
+      list-style: none;
+      padding-left: 1rem;
+    }
+
+    ul li::before {
+      content: "❯ ";
+      color: var(--accent-dark);
+    }
+
+    #wrapper.light ul li::before {
+      color: var(--accent-light);
+    }
+
+    .skills span {
+      display: inline-block;
+      background: var(--card-dark);
+      color: var(--fg-dark);
+      border: 1px solid var(--accent-dark);
+      padding: 0.3rem 0.6rem;
+      margin: 0.2rem;
+      border-radius: 5px;
+      font-size: 0.85rem;
+    }
+
+    #wrapper.light .skills span {
+      background: var(--card-light);
+      color: var(--fg-light);
+      border-color: var(--accent-light);
+    }
+
+    .card {
+      background-color: var(--card-dark);
+      padding: 1rem;
+      border-radius: 6px;
+      margin-top: 1rem;
+    }
+
+    #wrapper.light .card {
+      background-color: var(--card-light);
+    }
+
+    .theme-toggle {
+      position: fixed;
+      bottom: 2rem;
+      right: 1rem;
+    }
+
+    .theme-toggle label {
+      cursor: pointer;
+      background: var(--card-dark);
+      color: var(--fg-dark);
+      border: 1px solid var(--accent-dark);
+      padding: 0.4rem 0.8rem;
+      border-radius: 6px;
+      user-select: none;
+      font-size: 0.9rem;
+    }
+
+    #wrapper.light .theme-toggle label {
+      background: var(--card-light);
+      color: var(--fg-light);
+      border-color: var(--accent-light);
+    }
+
+    @media (max-width: 600px) {
+      #wrapper {
+        padding: 1rem;
+      }
+
+      #hideme {
+        display: none !important;
+      }
+
+      #myname {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+      }
+    }
+
+    @media (min-width: 600px) {
+      #showme {
+        display: none !important;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="theme-wrapper" id="wrapper">
+    <div class="theme-toggle">
+      <label id="toggle-label">🌓 Theme</label>
+    </div>
+
+    <header>
+      <div style="flex: 0 0 30%; display: flex; justify-content: center; align-items: center;" id="showme">
+        <img src="./assets/profile.jpg" alt="Profile Picture"
+          style="width: 50%; height: auto; border-radius: 8px; transform: scale(1); transition: transform 2s ease;"></img>
       </div>
-      <div class="header__sm-menu">
-        <div class="header__sm-menu-content">
-          <ul class="header__sm-menu-links">
-            <li class="header__sm-menu-link">
-              <a href="./index.html"> Home </a>
-            </li>
 
-            <li class="header__sm-menu-link">
-              <a href="./index.html#about"> About </a>
-            </li>
-
-            <li class="header__sm-menu-link">
-              <a href="./indexblog.html"> Blogs </a>
-            </li>
-            <li class="header__sm-menu-link">
-              <a href="./indexblog.html"> Assets </a>
-            </li>
-
-            <li class="header__sm-menu-link">
-              <a href="./index.html#contact"> Contact </a>
-            </li>
-          </ul>
+      <div style="display: flex; justify-content: space-between; align-items: center; padding: 20px;">
+        <div style="text-align: left;">
+          <h1 id="myname">&lt; Harsh Verma /&gt;</h1>
+          <p>Noida, India | <a href="mailto:harshvermac5@gmail.com">harshvermac5@gmail.com</a> | +91 6202964886</p>
+          <p><a href="https://linkedin.com/in/harshvermac5">LinkedIn</a> | <a
+              href="https://github.com/harshvermac5">GitHub</a></p>
         </div>
+
+        <div style="text-align: right;" id="hideme">
+          <img src="./assets/profile.jpg" alt="Profile Picture"
+            style="width: 30%; height: auto; border-radius: 8px; transform: scale(1); transition: transform 2s ease;"></img>
+        </div>
+
       </div>
+
     </header>
-    <section class="home-hero">
-      <div class="home-hero__content">
-        <h1 class="heading-primary">Hello, My name is Harsh Verma</h1>
-        <div class="home-hero__info">
-          <p class="text-primary">
-            Seasoned Network Engineer and Automation Specialist optimizing IT landscapes for peak performance.
-          </p>
-        </div>
-        <div class="home-hero__cta">
-          <a href="./#projects" class="btn btn--bg">Explore my credentials</a>
-        </div>
-      </div>
-      <div class="home-hero__socials">
-        <div class="home-hero__social">
-          <a href="https://www.linkedin.com/in/harshvermac5/" target="_blank" class="home-hero__social-icon-link">
-            <img
-              src="./assets/png/linkedin-ico.png"
-              alt="icon"
-              class="home-hero__social-icon"
-            />
-          </a>
-        </div>
-        <div class="home-hero__social">
-          <a href="https://github.com/harshvermac5" class="home-hero__social-icon-link">
-            <img
-              src="./assets/png/github-ico.png"
-              alt="icon"
-              class="home-hero__social-icon"
-            />
-          </a>
-        </div>
-        <div class="home-hero__social">
-          <a href="https://twitter.com/harshvermac5" class="home-hero__social-icon-link">
-            <img
-              src="./assets/png/twitter-ico.png"
-              alt="icon"
-              class="home-hero__social-icon"
-            />
-          </a>
-        </div>
-        <div class="home-hero__social">
-          <a href="https://www.youtube.com/channel/UCvJDNEVDqQD1twD_GkIKPZQ" class="home-hero__social-icon-link">
-            <img
-              src="./assets/png/yt-ico.png"
-              alt="icon"
-              class="home-hero__social-icon"
-            />
-          </a>
-        </div>
-        <div class="home-hero__social">
-          <a
-            href="https://www.instagram.com/harshvermac5/"
-            class="home-hero__social-icon-link home-hero__social-icon-link--bd-none"
-          >
-            <img
-              src="./assets/png/insta-ico.png"
-              alt="icon"
-              class="home-hero__social-icon"
-            />
-          </a>
-        </div>
-      </div>
-      <div class="home-hero__mouse-scroll-cont">
-        <div class="mouse"></div>
+    <!--     <section>
+      <h2>🎯 Objective</h2>
+      <p>Security Engineer with hands-on experience in Linux hardening, network defense, and infrastructure automation. Seeking to strengthen enterprise security through scalable solutions.</p>
+    </section>
+ -->
+
+    <section>
+      <h2>🧠 Skills</h2>
+      <div class="skills">
+        <span>Security Hardening (Linux)</span>
+        <span>Endpoint Protection</span>
+        <span>Patch Management</span>
+        <span>Firewall (iptables, FortiGate, ASA)</span>
+        <span>SIEM (Syslog, SNMP)</span>
+        <span>802.1X, VLAN, ACL</span>
+        <span>Switching & Routing</span>
+        <span>VPN / NAT / HAProxy</span>
+        <span>Linux (RHEL, Ubuntu)</span>
+        <span>Windows Server</span>
+        <span>BMC/iDRAC/RAID</span>
+        <span>Python</span>
+        <span>Bash</span>
+        <span>PowerShell</span>
+        <span>Regex</span>
+        <span>Ansible / Terraform (basic)</span>
+        <span>Git / Jenkins</span>
+        <span>AWS / EC2 / Security Groups</span>
+        <span>Zoho / Freshdesk</span>
       </div>
     </section>
-    <section id="about" class="about sec-pad">
-      <div class="main-container">
-        <h2 class="heading heading-sec heading-sec__mb-med">
-          <span class="heading-sec__main">About Me</span>
-          <span class="heading-sec__sub">
-            Here you will find more information about me, what I do, and my current skills mostly in terms of programming and technology
-          </span>
-        </h2>
-        <div class="about__content">
-          <div class="about__content-main">
-            <h3 class="about__content-title">Get to know me!</h3>
-            <div class="about__content-details">
-              <p class="about__content-details-para">
-                Hey! It's
-                <strong>Harsh Verma</strong>
-                and I'm a <strong> Cisco Certified Network Associate </strong> located in
-                Patna, Bihar. I've been a educator with over 5 years of experience, now dedicated to guiding newcomers through the dynamic world of technology. <br>From <strong>CCNA</strong> and <strong>AI/Machine Learning</strong> notes to impactful coding projects, I bring a wealth of knowledge to inspire and empower individuals on their tech journey.<br/>
-              </p>
-              <p class="about__content-details-para">
-                Beyond the realm of technology, I have a passion for guitars, with Spanish and Classical being my picks. Feel free to
-                <strong>contact</strong> me here.
-              </p>
-            </div>
-            <a href="./#contact" class="btn btn--med btn--theme dynamicBgClr"
-              >Contact</a
-            >
-          </div>
-          <div class="about__content-skills">
-            <h3 class="about__content-title">My Skills</h3>
-            <div class="skills">
-              <div class="skills__skill">Network Engineering</div>
-              <div class="skills__skill">Ansible</div>
-              <div class="skills__skill">Virtual Networking</div>
-              <div class="skills__skill">Network Security</div>
-              <div class="skills__skill">TCP/IP</div>
-              <div class="skills__skill">Wireless Networking</div>
-              <div class="skills__skill">Routing and Switching</div>
-              <div class="skills__skill">Linux</div>
-              <div class="skills__skill">VoIP</div>
-              <div class="skills__skill">WAN</div>
-              <div class="skills__skill">Python</div>
-              <div class="skills__skill">Bash Scripting</div>
-            </div>
-          </div>
-        </div>
+
+    <section>
+      <h2>🏢 Experience</h2>
+
+      <div class="card">
+        <strong>Server Engineer – E2E Cloud Pvt Ltd</strong><br>
+        <small>Mar 2025 – Present</small>
+        <ul>
+          <li>Handled incidents via Zoho Ticketing within SLA & escalation matrix</li>
+          <li>Provisioned GPU/CPU infra (Dell XE9680, H100, ASUS AI Servers)</li>
+          <li>Configured bonding, VLANs, static routes via Ubuntu Netplan</li>
+          <li>Updated firmware & BIOS across Dell/ASUS/Supermicro</li>
+          <li>Managed 600+ physical servers & monthly power audits</li>
+          <li>Secured OS with SSH hardening, firewalling, CIS scripts</li>
+          <li>Isolated prod/dev/stage with firewall policy enforcement</li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <strong>Network Engineer – I2K2 Networks Pvt Ltd</strong><br>
+        <small>Nov 2024 – Mar 2025</small>
+        <ul>
+          <li>Maintained enterprise network (L2/L3, firewalls, routers)</li>
+          <li>Resolved VPN/IPsec issues via AnyDesk/RDP securely</li>
+          <li>Configured FortiGate, Cisco Firepower, VyOS policies</li>
+          <li>Monitored via Syslog/SNMP and escalated suspicious logs</li>
+          <li>Built SSL VPN & IPsec tunnels per client specifications</li>
+        </ul>
       </div>
     </section>
-    <section id="projects" class="projects sec-pad">
-      <div class="main-container">
-        <h2 class="heading heading-sec heading-sec__mb-bg">
-          <span class="heading-sec__main"> Achievements </span>
-          <span class="heading-sec__sub">
-            Follow my <strong><a style="color: #0062b9" href="indexblog.html" target="_blank">blog</a></strong> for more and regular IT insights and Progress. Join my tech odyssey! <br>Here are some top ones...<br/>
-          </span>
-        </h2>
 
-        <div class="projects__content">
-          <div class="projects__row">
-            <div class="projects__row-img-cont">
-              <img
-                src="./assets/certs/Cisco Certified Network Associate certificate_page-0001.jpg"
-                alt="CCNA Certification"
-                class="projects__row-img"
-                loading="lazy"
-              />
-            </div>
-            <div class="projects__row-content">
-              <h3 class="projects__row-content-title">CCNA Certification</h3>
-              <p class="projects__row-content-desc">
-                On 20 Jan 2024, I achieved the CCNA certification, demonstrating my skills and knowledge in network engineering and security. By staying updated with the industry trends and technologies, I can showcase my expertise and professionalism in any network-related project.
-              </p>
-              <!-- <a
-                href="./project-1.html"
-                class="btn btn--med btn--theme dynamicBgClr"
-                target="_blank"
-                >Case Study</a
-              > -->
-            </div>
-          </div>
-          <div class="projects__row">
-            <div class="projects__row-img-cont">
-              <img
-                src="assets/certs/Wireshark Certificate.jpg"
-                alt="Wireshark Certification"
-                class="projects__row-img"
-                loading="lazy"
-              />
-            </div>
-            <div class="projects__row-content">
-              <h3 class="projects__row-content-title">Wireshark Skills</h3>
-              <p class="projects__row-content-desc">
-                On 19 Feb 2024, I earned the Wireshark certification by David Bombal on Udemy. This proves my competency for network engineering and troubleshooting. I have always used Kali linux in between and this particular program always intrigued me, So I followed my heart to learn this <em>Priceless</em> tool.
+    <section>
+      <h2>🎓 Education</h2>
+      <ul>
+        <li>B.Com – Patna University (2021) – 63%</li>
+        <li>12th – Jean Paul's High School (2018) – 68%</li>
+        <li>10th – Jean Paul's High School (2016) – 76%</li>
+      </ul>
+    </section>
 
-              </p>
-              <!-- <a
-                href="./project-2.html"
-                class="btn btn--med btn--theme dynamicBgClr"
-                target="_blank"
-                >Case Study</a
-              > -->
-            </div>
-          </div>
-          <div class="projects__row">
-            <div class="projects__row-img-cont">
-              <img
-                src="./assets/certs/Tech for Everyone Certificate Sololearn.png"
-                alt="Sololearn Certificate"
-                class="projects__row-img"
-                loading="lazy"
-              />
-            </div>
-            <div class="projects__row-content">
-              <h3 class="projects__row-content-title">Tech for Everyone</h3>
-              <p class="projects__row-content-desc">
-                On 29 November 2023, I achieved the Tech for Everyone certificate by SoloLearn. This demonstrates my ability and interest in thinking like a programmer and understanding all major industries in tech. I have a strong passion in IT Technology and I am keen to explore more areas like SQL and Cloud computing to complement my Networking knowledge.
+    <section>
+      <h2><a href="cert-site.html">📜 Certifications 🖱</a></h2>
+      <ul>
+        <li>CCNA (Cisco) – CSC014498293 – Jan 2024</li>
+        <li>Wireshark Fundamentals (Udemy) – Feb 2024</li>
+        <li>Security Engineer (TryHackMe) – THM-YUCVU9DACS – Jun 2025</li>
+        <li>Cyber Security 101 (TryHackMe) – THM-LYFJWOFIXN – Apr 2025</li>
+      </ul>
+    </section>
 
-              </p>
-              <!-- <a
-                href="./project-3.html"
-                class="btn btn--med btn--theme dynamicBgClr"
-                target="_blank"
-                >Case Study</a
-              > -->
-            </div>
-          </div>
-        </div>
+    <section>
+      <h2>📁 Projects</h2>
+      <div class="card">
+        <strong>Knowledge Transfer Website</strong>
+        <p>Internal documentation & training portal for faster onboarding.</p>
+      </div>
+      <div class="card">
+        <strong>Multi-Search Tool</strong>
+        <p>Automation tool to query across threat intel sources via single CLI.</p>
+      </div>
+      <div class="card">
+        <strong>Selenium Auto-Updater</strong>
+        <p>Scripted UI test runner with auto-update capability using GitHub Releases.</p>
       </div>
     </section>
-    <section id="contact" class="contact sec-pad dynamicBg">
-      <div class="main-container">
-        <h2 class="heading heading-sec heading-sec__mb-med">
-          <span class="heading-sec__main heading-sec__main--lt">Contact</span>
-          <span class="heading-sec__sub heading-sec__sub--lt">
-            Feel free to Contact me by sending me an email at <strong><a href="mailto:harshvermac5@gmail.com">harshvermac5@gmail.com</a></strong>.<br> I will get back to you as soon as possible.<br/> <br> The Form below will Start Working as soon I learn using SQL.<br/>
-          
-          </span>
-        </h2>
-        <div class="contact__form-container">
-          <form action="https://api.web3forms.com/submit" method="POST">
 
-            <!-- Replace with your Access Key -->
-            <input type="hidden" name="access_key" value="cea5b1be-e6cb-45a6-a8b9-fbe799cf0576">
-          <div class="contact__form-field">
-              <label class="contact__form-label" for="name">Name</label>
-              <input
-                required
-                placeholder="Enter Your Name"
-                type="text"
-                class="contact__form-input"
-                name="name"
-                id="name"
-              />
-            </div>
-            <div class="contact__form-field">
-              <label class="contact__form-label" for="email">Email</label>
-              <input
-                required
-                placeholder="Enter Your Email"
-                type="text"
-                class="contact__form-input"
-                name="email"
-                id="email"
-              />
-            </div>
-            <div class="contact__form-field">
-              <label class="contact__form-label" for="message">Message</label>
-              <textarea
-                required
-                cols="30"
-                rows="10"
-                class="contact__form-input"
-                placeholder="Enter Your Message"
-                name="message"
-                id="message"
-              ></textarea>
-            </div>
-            <button type="submit" class="btn btn--theme contact__btn">
-              Submit
-            </button>
-          </form>
-        </div>
-      </div>
+    <section>
+      <h2>📬 Contact</h2>
+      <p>📧 <a href="mailto:harshvermac5@gmail.com">harshvermac5@gmail.com</a></p>
+      <p>🔗 <a href="https://linkedin.com/in/harshvermac5">LinkedIn</a></p>
+      <p>💻 <a href="https://github.com/harshvermac5">GitHub</a></p>
     </section>
-    <footer class="main-footer">
-      <div class="main-container">
-        <div class="main-footer__upper">
-          <div class="main-footer__row main-footer__row-1">
-            <h2 class="heading heading-sm main-footer__heading-sm">
-              <span>Social</span>
-            </h2>
-            <div class="main-footer__social-cont">
-              <a target="_blank" rel="noreferrer" href="https://www.linkedin.com/in/harshvermac5/">
-                <img
-                  class="main-footer__icon"
-                  src="./assets/png/linkedin-ico.png"
-                  alt="icon"
-                />
-              </a>
-              <a target="_blank" rel="noreferrer" href="https://github.com/harshvermac5">
-                <img
-                  class="main-footer__icon"
-                  src="./assets/png/github-ico.png"
-                  alt="icon"
-                />
-              </a>
-              <a target="_blank" rel="noreferrer" href="https://twitter.com/harshvermac5">
-                <img 
-                  class="main-footer__icon" 
-                  src="./assets/png/twitter-ico.png"
-                  alt="icon"
-                />
-              </a>
-              <a target="_blank" rel="noreferrer" href="https://www.youtube.com/channel/UCvJDNEVDqQD1twD_GkIKPZQ">
-                <img
-                  class="main-footer__icon"
-                  src="./assets/png/yt-ico.png"
-                  alt="icon"
-                />
-              </a>
-              <a target="_blank" rel="noreferrer" href="https://www.instagram.com/harshvermac5/">
-                <img
-                  class="main-footer__icon main-footer__icon--mr-none"
-                  src="./assets/png/insta-ico.png"
-                  alt="icon"
-                />
-              </a>
-            </div>
-          </div>
-          <div class="main-footer__row main-footer__row-2">
-            <h4 class="heading heading-sm text-lt">Harsh Verma</h4>
-            <p class="main-footer__short-desc">
-              A Cisco Certified Network Associate building pathways to success in the ever-evolving tech realm.
-            </p>
-          </div>
-        </div>
 
-        <!-- If you give me some credit or shoutout here by linking to my website, then it will be a big thing for me and will help me a lot :) -->
-        <div class="main-footer__lower">
-          &copy; Copyright 2021. Made by
-          <a rel="noreferrer" target="_blank" href="http:harshvermac5.github.io/indexblog.html"
-            >Harsh Verma</a
-          >
-        </div>
-      </div>
+    <footer>
+      <p>&copy; 2025 Harsh Verma — Built with ❤ in pure CSS | Dark/Light Mode Supported</p>
     </footer>
+  </div>
 
-    <script src="./index.js"></script>
-  </body>
+  <script>
+    const wrapper = document.getElementById("wrapper");
+    const label = document.getElementById("toggle-label");
+
+    label.addEventListener("click", () => {
+      wrapper.classList.toggle("light");
+      label.textContent = wrapper.classList.contains("light") ? "🌙 Theme" : "🌓 Theme";
+    });
+
+  </script>
+</body>
+
 </html>

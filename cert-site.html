@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Certifications | Harsh Verma</title>
+  <style>
+    :root {
+      --bg-light: #f9f9f9;
+      --fg-light: #111;
+      --card-light: #fff;
+      --accent-light: #0055ff;
+
+      --bg-dark: #0e1111;
+      --fg-dark: #e6edf3;
+      --card-dark: #1a1d1d;
+      --accent-dark: #00ff99;
+
+      --transition: 0.3s ease;
+    }
+
+    html,
+    body {
+      margin: 0;
+      font-family: Consolas, "Courier New", monospace;
+    }
+
+    .theme-wrapper {
+      --bg: var(--bg-dark);
+      --fg: var(--fg-dark);
+      --card: var(--card-dark);
+      --accent: var(--accent-dark);
+      background-color: var(--bg);
+      color: var(--fg);
+      transition: background-color var(--transition), color var(--transition);
+      min-height: 100vh;
+    }
+
+    .theme-wrapper.light {
+      --bg: var(--bg-light);
+      --fg: var(--fg-light);
+      --card: var(--card-light);
+      --accent: var(--accent-light);
+    }
+
+    .theme-toggle {
+      position: fixed;
+      bottom: 2rem;
+      right: 1rem;
+    }
+
+    .theme-toggle label {
+      background: var(--card);
+      color: var(--fg);
+      border: 1px solid var(--accent);
+      padding: 0.4rem 0.8rem;
+      border-radius: 6px;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    header {
+      padding: 2.5rem;
+      background-color: var(--card);
+      border-bottom: 1px solid var(--accent);
+    }
+
+    header h1 {
+      margin: 0;
+      font-size: 2rem;
+      color: var(--accent);
+    }
+
+    main {
+      padding: 2rem;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 1.5rem;
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--accent);
+      border-radius: 8px;
+      overflow: hidden;
+      transition: transform 0.2s ease, box-shadow 0.3s ease;
+      cursor: pointer;
+    }
+
+    .card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 0 10px var(--accent);
+    }
+
+    .card img {
+      width: 100%;
+      height: 250px;
+      object-fit: contain;
+      background-color: #111;
+    }
+
+    .card-content {
+      text-align: center;
+      padding: 0.7rem;
+    }
+
+    .card-content h3 {
+      font-size: 0.95rem;
+      color: var(--accent);
+      margin: 0;
+      word-break: break-word;
+    }
+
+    footer {
+      text-align: center;
+      padding: 1rem;
+      border-top: 1px solid var(--accent);
+      font-size: 0.9rem;
+    }
+
+    /* Modal */
+    .modal {
+      display: none;
+      position: fixed;
+      z-index: 999;
+      left: 0;
+      top: 0;
+      width: 100vw;
+      height: 100vh;
+      background-color: rgba(0, 0, 0, 0.85);
+      align-items: center;
+      justify-content: center;
+    }
+
+    .modal img {
+      max-width: 90%;
+      max-height: 90%;
+      border-radius: 8px;
+      border: 2px solid var(--accent);
+    }
+
+    .modal-close {
+      position: absolute;
+      top: 20px;
+      right: 30px;
+      font-size: 2rem;
+      color: white;
+      cursor: pointer;
+    }
+
+    @media (max-width: 600px) {
+      main {
+        padding: 1rem;
+        gap: 1rem;
+      }
+
+      .card img {
+        height: 150px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="theme-wrapper" id="wrapper">
+    <div class="theme-toggle">
+      <label id="toggle-label">🌓 Theme</label>
+    </div>
+
+
+
+    <header>
+      <h1>&lt; <a href="index.html" style="color: var(--accent);"> Certifications</a> /&gt;</h1>
+      <p>Certifications validate <span style="color: var(--accent);">skills</span>, showcases <span
+          style="color: var(--accent);">commitment</span>, and open doors to opportunities that <span
+          style="color: var(--accent);">knowledge</span> alone may not unlock.</p>
+    </header>
+
+    <main id="cert-container">
+      <!-- Cards injected via JS -->
+    </main>
+
+    <div class="modal" id="modal">
+      <span class="modal-close" id="modal-close">&times;</span>
+      <img id="modal-img" src="" alt="Certificate">
+    </div>
+
+    <footer>
+      &copy; 2025 Harsh Verma — All certifications are verified screenshots 🛡️
+    </footer>
+  </div>
+
+  <script>
+    const certificates = [
+      "dev-sec-ops.jpg",
+      "sec-101.jpg",
+      "sec-eng.jpg",
+      "ccna.jpg",
+      "wireshark.jpg",
+      "intro-html.jpg",
+      "python-dev.jpg",
+      "python-inter.jpg",
+      "python-intro.jpg",
+      "sql-intro.jpg",
+      "sql-inter.jpg",
+      "tech.jpg"
+    ];
+
+    const container = document.getElementById("cert-container");
+    const modal = document.getElementById("modal");
+    const modalImg = document.getElementById("modal-img");
+    const modalClose = document.getElementById("modal-close");
+
+    certificates.forEach(cert => {
+      const card = document.createElement("div");
+      card.className = "card";
+
+      const img = document.createElement("img");
+      img.src = "assets/" + cert;
+      img.alt = "assets/" + cert;
+      img.addEventListener("click", () => {
+        modal.style.display = "flex";
+        modalImg.src = "assets/" + cert;
+      });
+
+      const content = document.createElement("div");
+      content.className = "card-content";
+      content.innerHTML = `<h3>${cert.replace(/[-_]/g, ' ').replace('.jpg', '')}</h3>`;
+
+      card.appendChild(img);
+      card.appendChild(content);
+      container.appendChild(card);
+    });
+
+    modalClose.onclick = () => {
+      modal.style.display = "none";
+    };
+
+    window.onclick = e => {
+      if (e.target === modal) {
+        modal.style.display = "none";
+      }
+    };
+
+    // Working Theme Toggle
+    const wrapper = document.getElementById("wrapper");
+    const label = document.getElementById("toggle-label");
+
+    label.addEventListener("click", () => {
+      wrapper.classList.toggle("light");
+      label.textContent = wrapper.classList.contains("light") ? "🌙 Theme" : "🌓 Theme";
+    });
+  </script>
+</body>
+
+</html>
