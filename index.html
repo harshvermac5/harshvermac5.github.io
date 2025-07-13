@@ -66,6 +66,9 @@
     h1,
     h2 {
       color: var(--accent-dark);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
     #wrapper.light h1,
@@ -182,13 +185,14 @@
     </div>
 
     <header>
-      <div style="flex: 0 0 30%; display: flex; justify-content: center; align-items: center;" id="showme">
+      <div style="flex: 0 0 30%; display: flex; justify-content: center; align-items: center; padding-top: 2rem;" id="showme">
         <img src="./assets/profile.jpg" alt="Profile Picture"
           style="width: 50%; height: auto; border-radius: 8px; transform: scale(1); transition: transform 2s ease;"></img>
       </div>
 
-      <div style="display: flex; justify-content: space-between; align-items: center; padding: 20px;">
-        <div style="text-align: left;">
+      <div
+        style="display: flex; flex-wrap: nowrap; justify-content: space-between; align-items: center; padding: 20px;">
+        <div>
           <h1 id="myname">&lt; Harsh Verma /&gt;</h1>
           <p>Noida, India | <a href="mailto:harshvermac5@gmail.com">harshvermac5@gmail.com</a> | +91 6202964886</p>
           <p><a href="https://linkedin.com/in/harshvermac5">LinkedIn</a> | <a
@@ -197,7 +201,7 @@
 
         <div style="text-align: right;" id="hideme">
           <img src="./assets/profile.jpg" alt="Profile Picture"
-            style="width: 30%; height: auto; border-radius: 8px; transform: scale(1); transition: transform 2s ease;"></img>
+            style="width: 40%; height: auto; border-radius: 8px; transform: scale(1); transition: transform 2s ease;"></img>
         </div>
 
       </div>
