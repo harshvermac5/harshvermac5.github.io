@@ -1,0 +1,128 @@
+cv:
+  name: Harsh Verma
+  label: Network Engineer
+  email: harshvermac5@gmail.com
+  phone: +91 6202964886
+  location: Gurugram, India
+  image: "/assets/img/profile/harsh-verma.jpg"
+  summary: Proactive and detail-oriented infrastructure engineer with hands-on experience in Linux systems, network defense, hardware troubleshooting, GPU and CPU server provisioning, and data center operations.
+
+  social_networks:
+    - network: LinkedIn
+      username: harshvermac5
+    - network: GitHub
+      username: harshvermac5
+
+  sections:
+    Experience:
+      - company: Ubiquiti Inc.
+        position: Technical Support Engineer – Routing, Switching & Security
+        location: Gurugram, Haryana
+        start_date: 2026-06
+        end_date: present
+        summary: Provide advanced technical support and root-cause analysis for enterprise and prosumer UniFi networking environments, specializing in routing, switching, VPN, SD-WAN, and network security.
+        highlights:
+          - Troubleshoot complex L2/L3 issues involving VLANs, STP/RSTP, DHCP, routing, NAT, firewalls, LAG, SFP/SFP+, PoE, and multi-WAN.
+          - Diagnose and design VPN/SD-WAN solutions using IPsec/IKEv2, WireGuard, policy-based routing, and site-to-site architectures.
+          - Perform deep log, packet-capture, telemetry, and support-file analysis to isolate network, firmware, hardware, and application failures.
+          - Reproduce defects, develop workarounds, prepare engineering bug reports, and manage complex cases through escalation and resolution.
+    
+      - company: E2E Cloud Limited
+        position: Server Engineer
+        location: Noida, Uttar Pradesh
+        start_date: 2025-03
+        end_date: 2026-06
+        summary: Manage and support 600+ physical GPU and CPU servers across Dell PowerEdge XE9680, ASUS AI, Supermicro, and NVIDIA H100/H200 platforms.
+        highlights:
+          - Diagnose memory faults, PSU failures, storage degradation, and GPU stability issues using BMC/IPMI, nvidia-smi, dmesg, and diagnostic utilities.
+          - Perform firmware and BIOS upgrades across multi-OEM systems, improving patch compliance by 30%.
+          - Configure Linux interface bonding, VLANs, static routes, firewall policies, and security hardening.
+          - Produce power consumption audits and resolve incidents through SLA-based workflows.
+
+      - company: I2K2 Networks Private Limited
+        position: Network Engineer
+        location: Noida, Uttar Pradesh
+        start_date: 2024-12
+        end_date: 2025-03
+        summary: Administered core L2/L3 switches, firewalls, and routers for stable and secure enterprise connectivity.
+        highlights:
+          - Configured VyOS, FortiGate, and Cisco Firepower for policy enforcement, NAT, routing, and VPN connectivity.
+          - Designed and maintained SSL and IPsec tunnels for encrypted inter-site communication.
+          - Monitored SNMP, Syslog, and system logs and managed SLA-governed work through Freshdesk.
+
+      - company: Conneqt Business Solutions
+        position: Technical Support Consultant
+        location: Noida, Uttar Pradesh
+        start_date: 2024-06
+        end_date: 2025-12
+        summary: Configured fintech devices and supported customers through voice and email channels.
+        highlights:
+          - Maintained a 96% customer satisfaction score through efficient issue resolution.
+          - Documented customer interactions and updated CRM records accurately.
+
+    Education:
+      - institution: Patna University, Vanijya Mahavidyalaya
+        location: Patna, India
+        area: Commerce
+        studyType: Bachelor of Commerce (B.Com)
+        end_date: 2021
+        score: 63%
+
+      - institution: Jean Paul’s High School
+        area: Senior Secondary (12th)
+        end_date: 2018
+        score: 68%
+
+      - institution: Jean Paul’s High School
+        area: Secondary (10th)
+        end_date: 2016
+        score: 76%
+
+    Skills:
+      - name: Server and Hardware Management
+        icon: fa-solid fa-server
+        keywords: Rack and blade servers, GPU and CPU diagnostics, RAID, BMC/IPMI, iDRAC, BIOS and firmware lifecycle, power auditing
+      - name: Networking
+        icon: fa-solid fa-network-wired
+        keywords: L2/L3 switching, VLANs, OSPF, static routing, IPsec and SSL VPN, ACLs, VyOS, FortiGate, Cisco firewalls, SNMP and Syslog
+      - name: Operating Systems
+        icon: fa-brands fa-linux
+        keywords: Ubuntu, RHEL, Rocky Linux, CentOS, Windows Server, ESXi, VirtualBox
+      - name: Automation and Scripting
+        icon: fa-solid fa-code
+        keywords: Python, Bash, PowerShell, JavaScript, Regex, SSH automation, Cron, Git, Jenkins, Ansible, Terraform
+      - name: Security and Monitoring
+        icon: fa-solid fa-shield-halved
+        keywords: Linux hardening, CIS benchmarks, patch management, endpoint protection, access control, Wireshark, Zabbix
+
+    Certificates:
+      - name: CCNA (Cisco Certified Network Associate)
+        date: 2024-01
+        issuer: Cisco
+        icon: fa-solid fa-certificate
+      - name: Security Engineer
+        date: 2025-06
+        issuer: TryHackMe
+        icon: fa-solid fa-shield-halved
+      - name: Cyber Security 101
+        date: 2025-04
+        issuer: TryHackMe
+        icon: fa-solid fa-lock
+      - name: Wireshark Fundamentals
+        date: 2024-02
+        issuer: Udemy
+        icon: fa-solid fa-magnifying-glass-chart
+
+    Projects:
+      - name: Ping Dashboard
+        start_date: 2024
+        summary: Multithreaded Python network monitoring tool using Tkinter and ThreadPoolExecutor to track host availability, latency, and packet loss.
+        highlights:
+          - Live status updates, search and sort, and CSV export.
+          - https://github.com/harshvermac5/ping-dashboard
+      - name: Extractors E2E
+        start_date: 2025
+        summary: Selenium automation framework for resilient extraction of rack and port data from the E2E portal.
+        highlights:
+          - Retry logic, multi-tab handling, and structured logging.
+          - https://github.com/harshvermac5/extractors-e2e

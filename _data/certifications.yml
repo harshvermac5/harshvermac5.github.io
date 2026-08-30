@@ -1,0 +1,89 @@
+- title: UniFi Routing, Switching and Cybersecurity Admin (URSCA)
+  short: URSCA
+  issuer: Ubiquiti
+  date: August 2026
+  image: /assets/img/certifications/ursca.jpg
+
+- title: Cisco Certified Network Associate (CCNA)
+  short: CCNA
+  issuer: Cisco
+  date: January 2024
+  credential_id: CSC014498293
+  image: /assets/img/certifications/ccna.jpg
+
+- title: Wireshark Fundamentals
+  short: WF
+  issuer: Udemy
+  date: February 2024
+  credential_id: UC-5fa29cd3-2dcO-4257-9c81-3dbe158f923c
+  image: assets/img/certifications/wireshark-fundamentals.jpg
+
+- title: DevSecOps
+  short: DevSecOps
+  issuer: TryHackMe
+  date: July 2025
+  credential_id: THM-RFIILCPGKT
+  image: assets/img/certifications/tryhackme-dev-sec-ops.jpg
+
+- title: Security Engineer
+  short: SE
+  issuer: TryHackMe
+  date: June 2025
+  credential_id: THM-YUCVU9DACS
+  image: assets/img/certifications/tryhackme-security-engineer.jpg
+
+- title: Cyber Security 101
+  short: CS101
+  issuer: TryHackMe
+  date: April 2025
+  credential_id: THM-LYFJWOFIXN
+  image: assets/img/certifications/tryhackme-cyber-security-101.jpg
+
+- title: Intro to HTML
+  short: HTML
+  issuer: Sololearn
+  date: April 2024
+  credential_id: CC-ZJAB3GU7
+  image: assets/img/certifications/sololearn-intro-to-html.jpg
+
+- title: SQL Intro
+  short: SQL
+  issuer: Sololearn
+  date: February 2024
+  credential_id: CC-EYUUHW3V
+  image: assets/img/certifications/sololearn-sql-intro.jpg
+
+- title: SQL Intermediate
+  short: SQLInter
+  issuer: Sololearn
+  date: February 2024
+  credential_id: CC-NI9PAH1D
+  image: assets/img/certifications/sololearn-sql-intermediate.jpg
+
+- title: Tech for Everyone
+  short: Tech
+  issuer: Sololearn
+  date: February 2024
+  credential_id: CC-GEJV6HNA
+  image: assets/img/certifications/sololearn-tech-for-everyone.jpg
+
+- title: Python Developer
+  short: PyDEV
+  issuer: Sololearn
+  date: January 2024
+  credential_id: CC-XKVCEHNC
+  image: assets/img/certifications/sololearn-python-developer.jpg
+
+- title: Python Intermediate
+  short: PyDEVInter
+  issuer: Sololearn
+  date: December 2023
+  credential_id: CC-LZ6SGJAT
+  image: assets/img/certifications/sololearn-python-intermediate.jpg
+
+- title: Python Intro
+  short: PyIntro
+  issuer: Sololearn
+  date: November 2023
+  credential_id: CC-STRO5V8S
+  image: assets/img/certifications/sololearn-python-intro.jpg
