@@ -1,4 +1,18 @@
 (() => {
+  const homepage = document.querySelector(".portfolio-site");
+  const navbarContainer = document.querySelector("#navbar > .container");
+
+  if (homepage && navbarContainer && !navbarContainer.querySelector(".navbar-brand")) {
+    const homeLink = navbarContainer.querySelector(".nav-item.active > .nav-link");
+    const brand = document.createElement("a");
+
+    brand.className = "navbar-brand title font-weight-lighter";
+    brand.href = homeLink?.href || "/";
+    brand.textContent = "Harsh Verma";
+    brand.setAttribute("aria-label", "Harsh Verma home");
+    navbarContainer.prepend(brand);
+  }
+
   const projectNavLink = document.querySelector('.navbar .nav-link[href$="#projects"]');
   const projectTarget = document.getElementById("projects");
 

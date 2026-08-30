@@ -1,6 +1,6 @@
 ---
 layout: default
-title: Harsh Verma
+title: About
 permalink: /
 nav: false
 ---
