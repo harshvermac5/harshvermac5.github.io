@@ -1,0 +1,27 @@
+<ul class="card-text font-weight-light cv-certificate-list">
+  {% for entry in entries %}
+    <li class="cv-certificate-item">
+      <span class="cv-list-bullet" aria-hidden="true"></span>
+      {% if entry.icon %}
+        <i class="{{ entry.icon }} cv-certificate-icon" aria-hidden="true"></i>
+      {% endif %}
+      <span>
+        {% if entry.url %}
+          <strong
+            ><a href="{{ entry.url }}" target="_blank" rel="noopener noreferrer">{{ entry.name }}</a></strong
+          >
+        {% else %}
+          <strong>{{ entry.name }}</strong>
+        {% endif %}
+
+        {% if entry.issuer %}
+          - <em>{{ entry.issuer }}</em>
+        {% endif %}
+
+        {% if entry.date %}
+          ({{ entry.date | split: '-' | slice: 0, 1 | join: '' }})
+        {% endif %}
+      </span>
+    </li>
+  {% endfor %}
+</ul>

@@ -26,7 +26,7 @@ cv:
           - Diagnose and design VPN/SD-WAN solutions using IPsec/IKEv2, WireGuard, policy-based routing, and site-to-site architectures.
           - Perform deep log, packet-capture, telemetry, and support-file analysis to isolate network, firmware, hardware, and application failures.
           - Reproduce defects, develop workarounds, prepare engineering bug reports, and manage complex cases through escalation and resolution.
-    
+
       - company: E2E Cloud Limited
         position: Server Engineer
         location: Noida, Uttar Pradesh
@@ -69,12 +69,16 @@ cv:
         score: 63%
 
       - institution: Jean Paul’s High School
-        area: Senior Secondary (12th)
+        location: "Arrah, Bihar"
+        area: "Commerce"
+        studyType: Senior Secondary (12th)
         end_date: 2018
         score: 68%
 
       - institution: Jean Paul’s High School
-        area: Secondary (10th)
+        location: "Arrah, Bihar"
+        area: "Basic Schooling"
+        studyType: Secondary (10th)
         end_date: 2016
         score: 76%
 

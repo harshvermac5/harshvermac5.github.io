@@ -1,0 +1,68 @@
+<ul class="card-text font-weight-light cv-skill-list">
+  {% for entry in entries %}
+    <li class="cv-skill-item">
+      <span class="cv-list-bullet" aria-hidden="true"></span>
+      {% if entry.icon %}
+        <i class="{{ entry.icon }} cv-skill-icon" aria-hidden="true"></i>
+      {% endif %}
+      <span>
+        <strong>
+          {{- entry.name -}}
+          {%- if entry.level %} ({{ entry.level }}){% endif %}:</strong
+        >
+        {% if entry.keywords %}
+          {% for keyword in entry.keywords %}
+            {% if forloop.last %}
+              {{ keyword }}
+            {% else %}
+              {{ keyword }},
+            {% endif %}
+          {% endfor %}
+        {% endif %}
+      </span>
+    </li>
+  {% endfor %}
+</ul>
+
+<style>
+  /* Theme-generated section entries should not inherit stray browser bullets. */
+  .cv .card > div > .list-group > .list-group-item {
+    list-style: none;
+  }
+
+  /* Keep date badges level with the titles in Experience, Projects, and any
+     other CV section that uses the theme's shared date-column pattern. */
+  .cv .date-column {
+    transform: translateX(-15px);
+  }
+
+  .cv-skill-list,
+  .cv-certificate-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  .cv-skill-item,
+  .cv-certificate-item {
+    align-items: baseline;
+    display: grid;
+    gap: 0.65rem;
+    grid-template-columns: 0.45rem 1.2rem minmax(0, 1fr);
+    line-height: 1.55;
+    padding: 0.55rem 0;
+  }
+
+  .cv-list-bullet {
+    background: currentColor;
+    border-radius: 50%;
+    height: 0.32rem;
+    width: 0.32rem;
+  }
+
+  .cv-skill-icon,
+  .cv-certificate-icon {
+    color: var(--global-theme-color);
+    text-align: center;
+  }
+</style>
