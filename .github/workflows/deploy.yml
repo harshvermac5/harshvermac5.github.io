@@ -97,6 +97,9 @@ jobs:
           pip3 install --upgrade nbconvert
           export JEKYLL_ENV=production
           bundle exec jekyll build
+          # The site is already fully generated. This marker tells GitHub Pages
+          # to publish it as-is instead of running a second, incompatible build.
+          touch _site/.nojekyll
       - name: Purge unused CSS 🧹
         run: |
           npm install -g purgecss

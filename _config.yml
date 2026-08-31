@@ -227,6 +227,7 @@ exclude:
   - bin/
   - CLAUDE.md
   - CONTENT_GUIDE.md
+  - PROJECT_GUIDE.md
   - Dockerfile
   - docker-compose.yml
   - docker-compose-slim.yml
