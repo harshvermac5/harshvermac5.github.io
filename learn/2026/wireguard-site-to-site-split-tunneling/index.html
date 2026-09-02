@@ -1,0 +1,208 @@
+<!DOCTYPE html> <html lang="en"> <head> <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"> <meta charset="utf-8"> <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no"> <meta http-equiv="X-UA-Compatible" content="IE=edge"> <title> WireGuard Site-to-Site Routing with Selective Split Tunneling | Harsh Verma </title> <meta name="author" content="Harsh Verma"> <meta name="description" content="How WireGuard cryptokey routing, policy-based forwarding, firewall rules, NAT, and return paths combine in a selective site-to-site VPN design."> <meta name="keywords" content="server engineer, network engineer, linux, data center, infrastructure automation, portfolio"> <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https:; style-src 'self' 'unsafe-inline' https:; img-src 'self' data: https:; font-src 'self' data: https:; media-src 'self' https:; frame-src 'self' https:; connect-src 'self' https:;"> <style>
+  :root {
+    --max-content-width: 1100px;
+  }
+</style> <link rel="stylesheet" href="/assets/css/tailwind.css?v=50c64c15cbb9fd1ce6056fdb8bcb4b62"> <link defer rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.2.0/css/all.min.css" integrity="sha256-MVopmdyC2tYTiJ8wlktf0uh0v4NgT+vNdyVFepi7Q0c=" crossorigin="anonymous"> <link defer rel="stylesheet" href="https://cdn.jsdelivr.net/npm/academicons@1.9.5/css/academicons.min.css" integrity="sha256-SzrCOBJbGVFMahewkgjwnApaV2+av1DwMAA+/QGLyZw=" crossorigin="anonymous"> <link defer rel="stylesheet" href="https://cdn.jsdelivr.net/npm/scholar-icons@1.0.3/css/scholar-icons.css" integrity="sha256-VY3hHVj/hNX3fYG6wtbA6TcKJQl7+FthzGSyIB64klY=" crossorigin="anonymous"> <link defer rel="stylesheet" type="text/css" href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700|Roboto+Slab:100,300,400,500,700|Material+Icons&amp;display=swap"> <link defer rel="stylesheet" href="/assets/css/jekyll-pygments-themes-github.css?v=591dab5a4e56573bf4ef7fd332894c99" media="" id="highlight_theme_light"> <link rel="shortcut icon" href="data:image/svg+xml,&lt;svg%20xmlns=%22http://www.w3.org/2000/svg%22%20viewBox=%220%200%20100%20100%22&gt;&lt;text%20y=%22.9em%22%20font-size=%2290%22&gt;%F0%9F%96%A5%EF%B8%8F&lt;/text&gt;&lt;/svg&gt;"> <link rel="stylesheet" href="/assets/css/main.css?v=3116ba77db9ee1581d05bb3e86fbf7f1"> <link rel="canonical" href="https://harshvermac5.github.io/learn/2026/wireguard-site-to-site-split-tunneling/"> <script src="/assets/js/theme.js?v=5286c3e4c334d0ecb8fc0c40ff4fa7ec"></script> <link defer rel="stylesheet" href="/assets/css/jekyll-pygments-themes-native.css?v=5847e5ed4a4568527aa6cfab446049ca" media="none" id="highlight_theme_dark"> <script>
+    initTheme();
+  </script> </head> <body class="fixed-top-nav sticky-bottom-footer"> <header> <nav id="navbar" class="navbar navbar-light navbar-expand-sm fixed-top" role="navigation"> <div class="container"> <a class="navbar-brand title font-weight-lighter" href="/"> Harsh Verma </a> <button class="navbar-toggler collapsed navbar-toggler-main" type="button" data-nav-toggle="navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation"> <span class="sr-only">Toggle navigation</span> <span class="icon-bar top-bar"></span> <span class="icon-bar middle-bar"></span> <span class="icon-bar bottom-bar"></span> </button> <div class="collapse navbar-collapse navbar-collapse-main" id="navbarNav"> <ul class="navbar-nav navbar-menu-list flex-nowrap"> <li class="nav-item "> <a class="nav-link" href="/">About </a> </li> <li class="nav-item "> <a class="nav-link" href="/#projects">Projects </a> </li> <li class="nav-item active"> <a class="nav-link" href="/learn/index.html">Learning Hub </a> </li> <li class="nav-item "> <a class="nav-link" href="/certs/">Certifications </a> </li> <li class="nav-item"> <button id="search-toggle" type="button" title="Search" aria-label="Open search"> <span class="nav-link">ctrl k <i class="fa-solid fa-magnifying-glass"></i></span> </button> </li> <li class="toggle-container"> <button id="light-toggle" type="button" title="Change theme" aria-label="Change color theme"> <i class="fa-half-sun-moon" id="light-toggle-system"></i> <i class="fa-solid fa-moon" id="light-toggle-dark"></i> <i class="fa-solid fa-sun" id="light-toggle-light"></i> </button> </li> </ul> </div> </div> </nav> <progress id="progress" value="0"> <div class="progress-container"> <span class="progress-bar"></span> </div> </progress> </header> <div class="container mt-5" role="main"> <div class="post"> <header class="post-header"> <h1 class="post-title">WireGuard Site-to-Site Routing with Selective Split Tunneling</h1> <p class="post-meta"> Created on September 01, 2026 </p> <p class="post-tags"> <i class="fa-solid fa-calendar fa-sm"></i> 2026   ·   <i class="fa-solid fa-hashtag fa-sm"></i> wireguard   <i class="fa-solid fa-hashtag fa-sm"></i> vpn   <i class="fa-solid fa-hashtag fa-sm"></i> routing   <i class="fa-solid fa-hashtag fa-sm"></i> pbr   <i class="fa-solid fa-hashtag fa-sm"></i> networking   ·   <i class="fa-solid fa-tag fa-sm"></i> Networking </p> </header> <article class="post-content"> <div id="markdown-content"> <p>A selective WireGuard site-to-site VPN is best understood as a <strong>Layer-3 encrypted overlay controlled by normal routing policy</strong>. WireGuard encrypts and authenticates packets between peers, but it does not independently decide which application traffic should enter the tunnel.</p> <h2 id="separate-the-underlay-from-the-overlay">Separate the Underlay from the Overlay</h2> <p>Every WireGuard deployment has two logical paths.</p> <p>The <strong>underlay</strong> carries encrypted UDP packets between the public or translated addresses of the WireGuard peers.</p> <div class="language-text highlighter-rouge"><div class="highlight"><pre class="highlight"><code>Router A public IP
+        |
+     Internet
+        |
+Router B public/NAT address
+</code></pre></div></div> <p>The <strong>overlay</strong> carries the original Layer-3 traffic after encryption and decapsulation.</p> <div class="language-text highlighter-rouge"><div class="highlight"><pre class="highlight"><code>LAN A ---- Router A === WireGuard === Router B ---- LAN B
+</code></pre></div></div> <p>The remote WireGuard endpoint must remain reachable through the underlay. Routing the peer’s public endpoint back into the tunnel creates recursive routing: the tunnel would need to exist before the endpoint required to establish it could be reached.</p> <h2 id="route-selection-happens-before-wireguard-peer-selection">Route Selection Happens Before WireGuard Peer Selection</h2> <p>Assume only two systems need to communicate:</p> <div class="language-text highlighter-rouge"><div class="highlight"><pre class="highlight"><code>Site A backup server: 10.10.10.20
+Site B storage server: 10.20.20.30
+</code></pre></div></div> <p>A destination-specific route can steer all traffic for the remote server into WireGuard:</p> <div class="language-text highlighter-rouge"><div class="highlight"><pre class="highlight"><code>10.20.20.30/32 -&gt; wg0
+</code></pre></div></div> <p>If only one local source should use the tunnel, <strong>Policy-Based Routing</strong> can make the decision more specific:</p> <div class="language-text highlighter-rouge"><div class="highlight"><pre class="highlight"><code>if src == 10.10.10.20
+and dst == 10.20.20.30:
+    use wg0
+else:
+    use normal routing
+</code></pre></div></div> <p>The forwarding plane therefore decides whether a packet reaches the WireGuard interface. WireGuard then decides which peer is allowed to carry that packet.</p> <h2 id="understand-what-allowedips-actually-does">Understand What AllowedIPs Actually Does</h2> <p>WireGuard associates IP prefixes with peer public keys through <strong><code class="language-plaintext highlighter-rouge">AllowedIPs</code></strong>.</p> <p>For outbound traffic:</p> <div class="language-text highlighter-rouge"><div class="highlight"><pre class="highlight"><code>Destination IP
+    -&gt; AllowedIPs lookup
+    -&gt; Peer public key
+    -&gt; Encryption
+</code></pre></div></div> <p>For inbound traffic:</p> <div class="language-text highlighter-rouge"><div class="highlight"><pre class="highlight"><code>Authenticated peer
+    -&gt; Decrypt packet
+    -&gt; Inspect source IP
+    -&gt; Verify source is inside that peer's AllowedIPs
+</code></pre></div></div> <p>For example:</p> <div class="language-text highlighter-rouge"><div class="highlight"><pre class="highlight"><code>Peer B
+AllowedIPs = 10.20.20.0/24
+</code></pre></div></div> <p>A decrypted packet from Peer B with source <code class="language-plaintext highlighter-rouge">10.20.20.30</code> is valid. A packet from the same peer claiming source <code class="language-plaintext highlighter-rouge">10.50.50.100</code> is rejected unless that prefix is also assigned to Peer B.</p> <p>This means <strong><code class="language-plaintext highlighter-rouge">AllowedIPs</code> is both a peer-selection mechanism and a source-address authorization mechanism</strong>.</p> <p>Do not treat it as identical to the operating system routing table. Some management tools automatically create routes from <code class="language-plaintext highlighter-rouge">AllowedIPs</code>, but the logical functions remain separate:</p> <div class="language-text highlighter-rouge"><div class="highlight"><pre class="highlight"><code>Routing/PBR
+    -&gt; select wg0
+    -&gt; AllowedIPs
+    -&gt; select cryptographic peer
+</code></pre></div></div> <h2 id="keep-split-tunnel-scope-narrow">Keep Split-Tunnel Scope Narrow</h2> <p>The route scope determines whether the design is selective or broad.</p> <div class="language-text highlighter-rouge"><div class="highlight"><pre class="highlight"><code>10.20.20.30/32 -&gt; tunnel
+</code></pre></div></div> <p>This sends only one destination through WireGuard.</p> <div class="language-text highlighter-rouge"><div class="highlight"><pre class="highlight"><code>10.20.20.0/24 -&gt; tunnel
+</code></pre></div></div> <p>This sends the entire remote subnet through the tunnel.</p> <div class="language-text highlighter-rouge"><div class="highlight"><pre class="highlight"><code>0.0.0.0/0 -&gt; tunnel
+</code></pre></div></div> <p>This can turn the peer into a default IPv4 egress path.</p> <p>For tightly controlled application connectivity, a <code class="language-plaintext highlighter-rouge">/32</code> route provides the smallest forwarding scope and reduces accidental VPN transit.</p> <h2 id="return-path-routing-is-mandatory">Return-Path Routing Is Mandatory</h2> <p>A successful handshake proves that the WireGuard peers can authenticate and exchange tunnel packets. It does not prove that hosts behind those peers can communicate.</p> <p>If Site A routes <code class="language-plaintext highlighter-rouge">10.20.20.30</code> through WireGuard but Site B has no route back to <code class="language-plaintext highlighter-rouge">10.10.10.20</code>, the request may arrive while the response leaves through another interface.</p> <div class="language-text highlighter-rouge"><div class="highlight"><pre class="highlight"><code>Forward path: Site A -&gt; WireGuard -&gt; Site B
+Return path:  Site B -&gt; default route -&gt; WAN
+</code></pre></div></div> <p>That asymmetry commonly breaks connectivity because of stateful firewalls, NAT, anti-spoofing checks, or private RFC1918 addressing.</p> <p>Verify both directions:</p> <div class="language-text highlighter-rouge"><div class="highlight"><pre class="highlight"><code>Site A: 10.20.20.30/32 -&gt; WireGuard
+Site B: 10.10.10.20/32 -&gt; WireGuard
+</code></pre></div></div> <h2 id="treat-routing-and-firewall-policy-as-separate-controls">Treat Routing and Firewall Policy as Separate Controls</h2> <p>Routing answers <strong>where the packet should go</strong>. Firewall policy answers <strong>whether the packet is allowed to go there</strong>.</p> <p>A secure selective design should align three scopes:</p> <ul> <li> <strong>Cryptographic scope:</strong> which addresses belong to the remote peer.</li> <li> <strong>Routing scope:</strong> which traffic is sent into the tunnel.</li> <li> <strong>Security scope:</strong> which sources, destinations, and applications are permitted.</li> </ul> <p>For a backup workflow, avoid allowing the complete LAN-to-LAN path when only two systems need access.</p> <div class="language-text highlighter-rouge"><div class="highlight"><pre class="highlight"><code>source      = 10.10.10.20
+destination = 10.20.20.30
+protocol    = required backup services
+action      = allow
+</code></pre></div></div> <h2 id="account-for-nat-and-idle-peers">Account for NAT and Idle Peers</h2> <p>WireGuard runs over UDP. A peer behind NAT may lose its translation or firewall state during long idle periods.</p> <p><strong><code class="language-plaintext highlighter-rouge">PersistentKeepalive</code></strong> can maintain that state:</p> <div class="language-text highlighter-rouge"><div class="highlight"><pre class="highlight"><code>PersistentKeepalive = 25
+</code></pre></div></div> <p>This is primarily a NAT traversal mechanism, not a general tunnel-health monitor. WireGuard is intentionally quiet when no traffic needs to be sent.</p> <h2 id="check-mtu-when-large-transfers-fail">Check MTU When Large Transfers Fail</h2> <p>WireGuard adds roughly 60 bytes of overhead over IPv4 transport and 80 bytes over IPv6.</p> <p>If the tunnel MTU is too large, symptoms can include:</p> <ul> <li>TCP sessions that establish but stall during larger transfers.</li> <li>Fragmentation or ICMP dependency.</li> <li>Broken Path MTU Discovery.</li> <li>Backup jobs that fail only under sustained throughput.</li> </ul> <p>If small pings work but application transfers fail, MTU and TCP MSS behavior should be part of the investigation.</p> <h2 id="troubleshooting-order">Troubleshooting Order</h2> <p>When a selective WireGuard site-to-site path fails, check the forwarding chain in order:</p> <ul> <li>Confirm the remote public endpoint is reachable through the WAN underlay.</li> <li>Confirm a recent WireGuard handshake exists when traffic is generated.</li> <li>Verify the local route or PBR rule sends the intended flow to the WireGuard interface.</li> <li>Verify the destination matches the correct peer’s <code class="language-plaintext highlighter-rouge">AllowedIPs</code>.</li> <li>Verify the remote side accepts the decrypted source address under its own <code class="language-plaintext highlighter-rouge">AllowedIPs</code> configuration.</li> <li>Confirm firewall policy allows the application traffic in both directions.</li> <li>Confirm the return route points back through WireGuard.</li> <li>Check for overlapping LAN prefixes.</li> <li>Investigate MTU if only large packets or sustained transfers fail.</li> </ul> <p>The key design principle is simple: <strong>WireGuard encryption, route selection, and firewall policy should describe the same intended traffic scope</strong>. When those three layers agree, selective site-to-site connectivity becomes predictable and much easier to troubleshoot.</p> </div> </article> <br> <hr> <br> <h2 class="text-3xl font-semibold mb-4 mt-12">Enjoy Reading This Article?</h2> <p class="mb-2">Here are some more articles you might like to read next:</p> <ul class="list-disc pl-7 my-3 space-y-2 marker:text-[var(--global-theme-color)]"> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/diagnosing-wan-failures/">Diagnosing WAN Failures Beyond Physical Link State</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/linux-critical-thermal-shutdowns/">Diagnosing Linux Critical Thermal Shutdowns</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/docker-images-containers-air-gapped-debian/">Building and Transferring Docker Images to Air-Gapped Debian Systems</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/configuring-git-github-ssh-access-safely/">Configuring Git and GitHub SSH Access Safely</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/welcome-to-the-learning-hub/">Welcome to the Learning Hub</a> </li> </ul> </div> </div> <footer class="sticky-bottom mt-5" role="contentinfo"> <div class="container"> © Copyright 2026 Harsh Verma. Built with <a href="https://jekyllrb.com/" target="_blank" rel="external nofollow noopener">Jekyll</a> and <a href="https://github.com/alshedivat/al-folio" target="_blank" rel="external nofollow noopener">al-folio</a>. Hosted on GitHub Pages. </div> </footer> <script>
+  window.alFolio = {
+    compatBootstrap: false
+  };
+</script> <script src="/assets/js/nav-toggle.js?v=141bd79a73ebc0f0b6ea58e440ae79fc"></script> <script defer src="https://cdn.jsdelivr.net/npm/masonry-layout@4.2.2/dist/masonry.pkgd.min.js" integrity="sha256-Nn1q/fx0H7SNLZMQ5Hw5JLaTRZp0yILA/FRexe19VdI=" crossorigin="anonymous"></script> <script defer src="https://cdn.jsdelivr.net/npm/imagesloaded@5.0.0/imagesloaded.pkgd.min.js" integrity="sha256-htrLFfZJ6v5udOG+3kNLINIKh2gvoKqwEhHYfTTMICc=" crossorigin="anonymous"></script> <script defer src="/assets/js/masonry.js?v=e49affc7bd2646f6acdad1dbe02c2359" type="text/javascript"></script> <script defer type="text/javascript" id="MathJax-script" src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-mml-chtml.js" integrity="sha256-MASABpB4tYktI2Oitl4t+78w/lyA+D7b/s9GEP0JOGI=" crossorigin="anonymous"></script> <script src="/assets/al_math/js/mathjax-setup.js"></script> <script src="/assets/js/tooltips-setup.js?v=fe487e99db6c43751e6e7bdb2d6a0611"></script> <script src="/assets/js/no_defer.js?v=53b1b1a645525975c963ce8bf8bfefcf"></script> <script defer src="/assets/js/common.js?v=87baac90f765f2f3362dcf6aaf312a8a"></script> <script defer src="/assets/js/copy_code.js?v=c8a01c11a92744d44b093fc3bda915df" type="text/javascript"></script> <script defer src="/assets/js/jupyter_new_tab.js?v=896d254890d9b47f0281f63bfccf0dee"></script> <script async src="https://d1bxh8uas1mnw7.cloudfront.net/assets/embed.js"></script> <script async src="https://badge.dimensions.ai/badge.js"></script> <script defer src="https://cdn.jsdelivr.net/npm/medium-zoom@1.1.0/dist/medium-zoom.min.js" integrity="sha256-ZgMyDAIYDYGxbcpJcfUnYwNevG/xi9OHKaR/8GK+jWc=" crossorigin="anonymous"></script> <script defer src="/assets/al_img_tools/js/zoom.js"></script> <script defer src="/assets/js/progress-bar.js?v=499464c5c63ced6cf7ad62509f1e2610" type="text/javascript"></script> <script src="https://cdn.jsdelivr.net/npm/vanilla-back-to-top@7.2.1/dist/vanilla-back-to-top.min.js" integrity="sha256-uMJJ3EoTyfRBoTbR+lrfu1uRQ87RZG8AR3cVNuQVeFg=" crossorigin="anonymous"></script> <script>
+    addBackToTop();
+  </script> <script type="module" src="/assets/al_search/js/search/ninja-keys.min.js"></script> <ninja-keys hidebreadcrumbs noautoloadmdicons placeholder="Type to start searching"></ninja-keys> <script src="/assets/al_search/js/search-setup.js"></script> <script>
+// get the ninja-keys element
+const ninja = document.querySelector('ninja-keys');
+
+// add the home and posts menu items
+ninja.data = [{
+    id: "nav-about",
+    title: "About",
+    section: "Navigation",
+    handler: () => {
+      window.location.href = "/";
+    },
+  },{id: "nav-projects",
+          title: "Projects",
+          description: "",
+          section: "Navigation",
+          handler: () => {
+            window.location.href = "/#projects";
+          },
+        },{id: "nav-learning-hub",
+          title: "Learning Hub",
+          description: "Practical notes on servers, networking, Linux, security, and infrastructure automation.",
+          section: "Navigation",
+          handler: () => {
+            window.location.href = "/learn/index.html";
+          },
+        },{id: "nav-certifications",
+          title: "Certifications",
+          description: "Professional certifications across networking, cybersecurity, and infrastructure.",
+          section: "Navigation",
+          handler: () => {
+            window.location.href = "/certs/";
+          },
+        },{id: "post-diagnosing-wan-failures-beyond-physical-link-state",
+        
+          title: "Diagnosing WAN Failures Beyond Physical Link State",
+        
+        description: "A layered method for distinguishing Ethernet carrier loss, upstream path degradation, and application-level failure in redundant WAN designs.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/diagnosing-wan-failures/";
+          
+        },
+      },{id: "post-diagnosing-linux-critical-thermal-shutdowns",
+        
+          title: "Diagnosing Linux Critical Thermal Shutdowns",
+        
+        description: "A practical framework for distinguishing genuine silicon overheating from faulty thermal telemetry when Linux initiates a protective shutdown.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/linux-critical-thermal-shutdowns/";
+          
+        },
+      },{id: "post-wireguard-site-to-site-routing-with-selective-split-tunneling",
+        
+          title: "WireGuard Site-to-Site Routing with Selective Split Tunneling",
+        
+        description: "How WireGuard cryptokey routing, policy-based forwarding, firewall rules, NAT, and return paths combine in a selective site-to-site VPN design.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/wireguard-site-to-site-split-tunneling/";
+          
+        },
+      },{id: "post-building-and-transferring-docker-images-to-air-gapped-debian-systems",
+        
+          title: "Building and Transferring Docker Images to Air-Gapped Debian Systems",
+        
+        description: "A practical Debian-focused guide to Docker images, containers, offline Docker installation, and transferring workloads into air-gapped environments.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/docker-images-containers-air-gapped-debian/";
+          
+        },
+      },{id: "post-configuring-git-and-github-ssh-access-safely",
+        
+          title: "Configuring Git and GitHub SSH Access Safely",
+        
+        description: "A practical guide to configuring Git identity, setting up SSH authentication with GitHub, managing remotes, and pushing changes safely.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/configuring-git-github-ssh-access-safely/";
+          
+        },
+      },{id: "post-welcome-to-the-learning-hub",
+        
+          title: "Welcome to the Learning Hub",
+        
+        description: "A home for practical notes on infrastructure, networking, Linux, and automation.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/welcome-to-the-learning-hub/";
+          
+        },
+      },{
+        id: 'social-email',
+        title: 'email',
+        section: 'Socials',
+        handler: () => {
+          window.open("mailto:%68%61%72%73%68%76%65%72%6D%61%63%35@%67%6D%61%69%6C.%63%6F%6D", "_blank");
+        },
+      },{
+        id: 'social-github',
+        title: 'GitHub',
+        section: 'Socials',
+        handler: () => {
+          window.open("https://github.com/harshvermac5", "_blank");
+        },
+      },{
+        id: 'social-linkedin',
+        title: 'LinkedIn',
+        section: 'Socials',
+        handler: () => {
+          window.open("https://www.linkedin.com/in/harshvermac5", "_blank");
+        },
+      },{
+        id: 'social-rss',
+        title: 'RSS Feed',
+        section: 'Socials',
+        handler: () => {
+          window.open("/feed.xml", "_blank");
+        },
+      },{
+      id: 'light-theme',
+      title: 'Change theme to light',
+      description: 'Change the theme of the site to Light',
+      section: 'Theme',
+      handler: () => {
+        setThemeSetting("light");
+      },
+    },
+    {
+      id: 'dark-theme',
+      title: 'Change theme to dark',
+      description: 'Change the theme of the site to Dark',
+      section: 'Theme',
+      handler: () => {
+        setThemeSetting("dark");
+      },
+    },
+    {
+      id: 'system-theme',
+      title: 'Use system default theme',
+      description: 'Change the theme of the site to System Default',
+      section: 'Theme',
+      handler: () => {
+        setThemeSetting("system");
+      },
+    },];
+
+</script> <script src="/assets/al_search/js/shortcut-key.js"></script> </body> </html>

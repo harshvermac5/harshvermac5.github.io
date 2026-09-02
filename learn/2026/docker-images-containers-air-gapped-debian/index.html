@@ -1,0 +1,220 @@
+<!DOCTYPE html> <html lang="en"> <head> <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"> <meta charset="utf-8"> <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no"> <meta http-equiv="X-UA-Compatible" content="IE=edge"> <title> Building and Transferring Docker Images to Air-Gapped Debian Systems | Harsh Verma </title> <meta name="author" content="Harsh Verma"> <meta name="description" content="A practical Debian-focused guide to Docker images, containers, offline Docker installation, and transferring workloads into air-gapped environments."> <meta name="keywords" content="server engineer, network engineer, linux, data center, infrastructure automation, portfolio"> <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https:; style-src 'self' 'unsafe-inline' https:; img-src 'self' data: https:; font-src 'self' data: https:; media-src 'self' https:; frame-src 'self' https:; connect-src 'self' https:;"> <style>
+  :root {
+    --max-content-width: 1100px;
+  }
+</style> <link rel="stylesheet" href="/assets/css/tailwind.css?v=50c64c15cbb9fd1ce6056fdb8bcb4b62"> <link defer rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.2.0/css/all.min.css" integrity="sha256-MVopmdyC2tYTiJ8wlktf0uh0v4NgT+vNdyVFepi7Q0c=" crossorigin="anonymous"> <link defer rel="stylesheet" href="https://cdn.jsdelivr.net/npm/academicons@1.9.5/css/academicons.min.css" integrity="sha256-SzrCOBJbGVFMahewkgjwnApaV2+av1DwMAA+/QGLyZw=" crossorigin="anonymous"> <link defer rel="stylesheet" href="https://cdn.jsdelivr.net/npm/scholar-icons@1.0.3/css/scholar-icons.css" integrity="sha256-VY3hHVj/hNX3fYG6wtbA6TcKJQl7+FthzGSyIB64klY=" crossorigin="anonymous"> <link defer rel="stylesheet" type="text/css" href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700|Roboto+Slab:100,300,400,500,700|Material+Icons&amp;display=swap"> <link defer rel="stylesheet" href="/assets/css/jekyll-pygments-themes-github.css?v=591dab5a4e56573bf4ef7fd332894c99" media="" id="highlight_theme_light"> <link rel="shortcut icon" href="data:image/svg+xml,&lt;svg%20xmlns=%22http://www.w3.org/2000/svg%22%20viewBox=%220%200%20100%20100%22&gt;&lt;text%20y=%22.9em%22%20font-size=%2290%22&gt;%F0%9F%96%A5%EF%B8%8F&lt;/text&gt;&lt;/svg&gt;"> <link rel="stylesheet" href="/assets/css/main.css?v=3116ba77db9ee1581d05bb3e86fbf7f1"> <link rel="canonical" href="https://harshvermac5.github.io/learn/2026/docker-images-containers-air-gapped-debian/"> <script src="/assets/js/theme.js?v=5286c3e4c334d0ecb8fc0c40ff4fa7ec"></script> <link defer rel="stylesheet" href="/assets/css/jekyll-pygments-themes-native.css?v=5847e5ed4a4568527aa6cfab446049ca" media="none" id="highlight_theme_dark"> <script>
+    initTheme();
+  </script> </head> <body class="fixed-top-nav sticky-bottom-footer"> <header> <nav id="navbar" class="navbar navbar-light navbar-expand-sm fixed-top" role="navigation"> <div class="container"> <a class="navbar-brand title font-weight-lighter" href="/"> Harsh Verma </a> <button class="navbar-toggler collapsed navbar-toggler-main" type="button" data-nav-toggle="navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation"> <span class="sr-only">Toggle navigation</span> <span class="icon-bar top-bar"></span> <span class="icon-bar middle-bar"></span> <span class="icon-bar bottom-bar"></span> </button> <div class="collapse navbar-collapse navbar-collapse-main" id="navbarNav"> <ul class="navbar-nav navbar-menu-list flex-nowrap"> <li class="nav-item "> <a class="nav-link" href="/">About </a> </li> <li class="nav-item "> <a class="nav-link" href="/#projects">Projects </a> </li> <li class="nav-item active"> <a class="nav-link" href="/learn/index.html">Learning Hub </a> </li> <li class="nav-item "> <a class="nav-link" href="/certs/">Certifications </a> </li> <li class="nav-item"> <button id="search-toggle" type="button" title="Search" aria-label="Open search"> <span class="nav-link">ctrl k <i class="fa-solid fa-magnifying-glass"></i></span> </button> </li> <li class="toggle-container"> <button id="light-toggle" type="button" title="Change theme" aria-label="Change color theme"> <i class="fa-half-sun-moon" id="light-toggle-system"></i> <i class="fa-solid fa-moon" id="light-toggle-dark"></i> <i class="fa-solid fa-sun" id="light-toggle-light"></i> </button> </li> </ul> </div> </div> </nav> <progress id="progress" value="0"> <div class="progress-container"> <span class="progress-bar"></span> </div> </progress> </header> <div class="container mt-5" role="main"> <div class="post"> <header class="post-header"> <h1 class="post-title">Building and Transferring Docker Images to Air-Gapped Debian Systems</h1> <p class="post-meta"> Created on September 01, 2026 </p> <p class="post-tags"> <i class="fa-solid fa-calendar fa-sm"></i> 2026   ·   <i class="fa-solid fa-hashtag fa-sm"></i> docker   <i class="fa-solid fa-hashtag fa-sm"></i> debian   <i class="fa-solid fa-hashtag fa-sm"></i> containers   <i class="fa-solid fa-hashtag fa-sm"></i> airgap   <i class="fa-solid fa-hashtag fa-sm"></i> linux   ·   <i class="fa-solid fa-tag fa-sm"></i> learning </p> </header> <article class="post-content"> <div id="markdown-content"> <p>Docker works well in isolated environments because applications and their dependencies can be packaged on an internet-connected system, transferred as files, and loaded on a completely offline host.</p> <p>The important part is understanding what should be transferred. In most cases, <strong>transfer the Docker image, not the container</strong>.</p> <p>A Docker image is a static, read-only template containing the application filesystem, configuration, metadata, and image layers. A Docker container is a runtime instance created from that image.</p> <h2 id="image-vs-container">Image vs Container</h2> <p>Think of an <strong>image</strong> as an application package and a <strong>container</strong> as a running copy of that package.</p> <p>An image:</p> <ul> <li>Is read-only.</li> <li>Can be versioned and tagged.</li> <li>Can create multiple containers.</li> <li>Preserves image layers and Docker metadata.</li> <li>Is normally built from a Dockerfile.</li> <li>Can be transferred with <code class="language-plaintext highlighter-rouge">docker save</code> and restored with <code class="language-plaintext highlighter-rouge">docker load</code>.</li> </ul> <p>A container:</p> <ul> <li>Is created from an image.</li> <li>Has a writable filesystem layer.</li> <li>Represents runtime state.</li> <li>Can be started, stopped, modified, or deleted.</li> <li>Can be exported as a flattened filesystem using <code class="language-plaintext highlighter-rouge">docker export</code>.</li> </ul> <p>For air-gapped deployments, <strong><code class="language-plaintext highlighter-rouge">docker save</code> and <code class="language-plaintext highlighter-rouge">docker load</code> should normally be used</strong>.</p> <p>Use <code class="language-plaintext highlighter-rouge">docker export</code> and <code class="language-plaintext highlighter-rouge">docker import</code> when you specifically need the filesystem state of an existing container and do not care about preserving its original image layers and history.</p> <h2 id="choosing-the-right-method">Choosing the Right Method</h2> <p>Use <strong>Dockerfile → build → save → load</strong> for production deployments, repeatable lab environments, and normal air-gapped application distribution.</p> <p>Use <strong>docker commit → save → load</strong> when you need to capture useful container changes quickly but cannot immediately reproduce them in a Dockerfile.</p> <p>Use <strong>export → import</strong> when only the resulting container filesystem matters and losing layers, history, and some Docker metadata is acceptable.</p> <p>For long-term infrastructure management, prefer Dockerfiles. They document exactly how an image was created and make rebuilding, auditing, patching, and version control significantly easier.</p> <h2 id="building-an-image-on-an-internet-connected-debian-system">Building an Image on an Internet-Connected Debian System</h2> <p>First, install Docker Engine on the connected host. Follow the official Docker installation guide for Debian: https://docs.docker.com/engine/install/debian/</p> <p>Verify installation:</p> <div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">sudo </span>systemctl status docker
+<span class="nb">sudo </span>docker run hello-world
+</code></pre></div></div> <p>A Dockerfile is the preferred way to create a repeatable image. For example:</p> <div class="language-dockerfile highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">FROM</span><span class="s"> debian:13-slim</span>
+
+<span class="k">RUN </span>apt-get update <span class="o">&amp;&amp;</span> <span class="se">\
+</span>    apt-get <span class="nb">install</span> <span class="nt">-y</span> curl iputils-ping <span class="o">&amp;&amp;</span> <span class="se">\
+</span>    <span class="nb">rm</span> <span class="nt">-rf</span> /var/lib/apt/lists/<span class="k">*</span>
+
+<span class="k">CMD</span><span class="s"> ["/bin/bash"]</span>
+</code></pre></div></div> <p>Build it:</p> <div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>docker build <span class="nt">-t</span> offline-tools:1.0 <span class="nb">.</span>
+</code></pre></div></div> <p>Verify the image:</p> <div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>docker images
+docker run <span class="nt">--rm</span> <span class="nt">-it</span> offline-tools:1.0
+</code></pre></div></div> <p>Everything the container will require from package repositories should be installed <strong>during the image build while internet access is available</strong>. Do not design an offline container around running <code class="language-plaintext highlighter-rouge">apt update</code> after deployment.</p> <h2 id="saving-the-docker-image">Saving the Docker Image</h2> <p>Export the image into a portable tar archive:</p> <div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>docker save <span class="nt">-o</span> offline-tools-1.0.tar offline-tools:1.0
+</code></pre></div></div> <p><code class="language-plaintext highlighter-rouge">docker save</code> preserves the image’s layers, tags, configuration, and parent-layer information that Docker needs.</p> <p>If you made changes after running it interactively, commit the image first:</p> <div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>docker commit &lt;container_id&gt; offline-tools:2.0
+docker save <span class="nt">-o</span> offline-tools-2.0.tar offline-tools:2.0
+</code></pre></div></div> <p>For multiple images:</p> <div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>docker save <span class="nt">-o</span> application-stack.tar <span class="se">\</span>
+  frontend:1.0 <span class="se">\</span>
+  backend:1.0 <span class="se">\</span>
+  postgres:17
+</code></pre></div></div> <p>Generate a checksum before transferring:</p> <div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">sha256sum </span>offline-tools-1.0.tar <span class="o">&gt;</span> offline-tools-1.0.tar.sha256
+</code></pre></div></div> <p>Transfer both files using approved removable media or your organization’s air-gap transfer process.</p> <h2 id="installing-docker-on-the-air-gapped-debian-system">Installing Docker on the Air-Gapped Debian System</h2> <p>The offline host needs Docker Engine before it can load the transferred image. Download Docker <code class="language-plaintext highlighter-rouge">.deb</code> packages on an internet-connected system and transfer them to the air-gapped host.</p> <p>Follow the official Docker documentation for the <strong>manual package installation method</strong>: https://docs.docker.com/engine/install/debian/#install-from-a-package</p> <p>In summary:</p> <ul> <li>Download the required <code class="language-plaintext highlighter-rouge">.deb</code> files from <code class="language-plaintext highlighter-rouge">https://download.docker.com/linux/debian/dists/</code> for your Debian version and architecture.</li> <li>Transfer the packages offline.</li> <li>Install them using <code class="language-plaintext highlighter-rouge">sudo dpkg -i</code>.</li> <li>Verify installation with <code class="language-plaintext highlighter-rouge">sudo systemctl status docker</code>.</li> </ul> <p>Because the machine is offline, do <strong>not</strong> use <code class="language-plaintext highlighter-rouge">docker run hello-world</code> unless the <code class="language-plaintext highlighter-rouge">hello-world</code> image has also been transferred.</p> <h2 id="loading-the-image-offline">Loading the Image Offline</h2> <p>First, verify that the archive was not corrupted during transfer:</p> <div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">sha256sum</span> <span class="nt">-c</span> offline-tools-1.0.tar.sha256
+</code></pre></div></div> <p>A successful result should report:</p> <div class="language-text highlighter-rouge"><div class="highlight"><pre class="highlight"><code>offline-tools-1.0.tar: OK
+</code></pre></div></div> <p>Load the image:</p> <div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">sudo </span>docker load <span class="nt">-i</span> offline-tools-1.0.tar
+</code></pre></div></div> <p>Verify it:</p> <div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">sudo </span>docker images
+</code></pre></div></div> <p>Run the container:</p> <div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">sudo </span>docker run <span class="nt">--rm</span> <span class="nt">-it</span> offline-tools:1.0
+</code></pre></div></div> <p>At this point, neither an internet connection nor Docker Hub is required.</p> <h2 id="exporting-a-container-instead">Exporting a Container Instead</h2> <p>Sometimes the important state exists inside a modified container rather than its original image.</p> <p>Find the container:</p> <div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>docker ps <span class="nt">-a</span>
+</code></pre></div></div> <p>Export its filesystem:</p> <div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>docker <span class="nb">export</span> &lt;container_id&gt; <span class="nt">-o</span> container.tar
+</code></pre></div></div> <p>Transfer the archive and import it on the offline system:</p> <div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>docker import container.tar imported-container:1.0
+</code></pre></div></div> <p>Verify it:</p> <div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>docker images
+</code></pre></div></div> <p>This is different from <code class="language-plaintext highlighter-rouge">docker save</code>.</p> <p><strong><code class="language-plaintext highlighter-rouge">docker save</code> + <code class="language-plaintext highlighter-rouge">docker load</code></strong> should be used for normal image distribution.</p> <p><strong><code class="language-plaintext highlighter-rouge">docker export</code> + <code class="language-plaintext highlighter-rouge">docker import</code></strong> creates a flattened filesystem snapshot. Image layer history is lost, and data stored in Docker volumes is not included.</p> <p>If you modified a container interactively but want to preserve it as an image before transferring it, another option is:</p> <div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>docker commit &lt;container_id&gt; custom-image:1.0
+docker save <span class="nt">-o</span> custom-image-1.0.tar custom-image:1.0
+</code></pre></div></div> <p>This works, but building the changes into a Dockerfile is preferable because the resulting environment is reproducible.</p> <h2 id="key-takeaways">Key Takeaways</h2> <p>For most air-gapped deployments, the workflow should be:</p> <div class="language-text highlighter-rouge"><div class="highlight"><pre class="highlight"><code>Internet-connected Debian host
+        |
+        | docker build
+        v
+Docker image
+        |
+        | docker save / commit and save
+        v
+image.tar + SHA256 checksum
+        |
+        | approved offline transfer
+        v
+Air-gapped Debian host
+        |
+        | docker load
+        v
+Local Docker image
+        |
+        | docker run
+        v
+Running container
+</code></pre></div></div> <p>Build everything possible while connected to the internet, transfer immutable images instead of relying on runtime downloads, verify transferred files with checksums, and keep the Dockerfile as the authoritative definition of the environment.</p> <p>That approach makes an air-gapped Docker deployment reproducible instead of turning the offline container into a manually maintained system.</p> </div> </article> <br> <hr> <br> <h2 class="text-3xl font-semibold mb-4 mt-12">Enjoy Reading This Article?</h2> <p class="mb-2">Here are some more articles you might like to read next:</p> <ul class="list-disc pl-7 my-3 space-y-2 marker:text-[var(--global-theme-color)]"> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/diagnosing-wan-failures/">Diagnosing WAN Failures Beyond Physical Link State</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/linux-critical-thermal-shutdowns/">Diagnosing Linux Critical Thermal Shutdowns</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/wireguard-site-to-site-split-tunneling/">WireGuard Site-to-Site Routing with Selective Split Tunneling</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/configuring-git-github-ssh-access-safely/">Configuring Git and GitHub SSH Access Safely</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/welcome-to-the-learning-hub/">Welcome to the Learning Hub</a> </li> </ul> </div> </div> <footer class="sticky-bottom mt-5" role="contentinfo"> <div class="container"> © Copyright 2026 Harsh Verma. Built with <a href="https://jekyllrb.com/" target="_blank" rel="external nofollow noopener">Jekyll</a> and <a href="https://github.com/alshedivat/al-folio" target="_blank" rel="external nofollow noopener">al-folio</a>. Hosted on GitHub Pages. </div> </footer> <script>
+  window.alFolio = {
+    compatBootstrap: false
+  };
+</script> <script src="/assets/js/nav-toggle.js?v=141bd79a73ebc0f0b6ea58e440ae79fc"></script> <script defer src="https://cdn.jsdelivr.net/npm/masonry-layout@4.2.2/dist/masonry.pkgd.min.js" integrity="sha256-Nn1q/fx0H7SNLZMQ5Hw5JLaTRZp0yILA/FRexe19VdI=" crossorigin="anonymous"></script> <script defer src="https://cdn.jsdelivr.net/npm/imagesloaded@5.0.0/imagesloaded.pkgd.min.js" integrity="sha256-htrLFfZJ6v5udOG+3kNLINIKh2gvoKqwEhHYfTTMICc=" crossorigin="anonymous"></script> <script defer src="/assets/js/masonry.js?v=e49affc7bd2646f6acdad1dbe02c2359" type="text/javascript"></script> <script defer type="text/javascript" id="MathJax-script" src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-mml-chtml.js" integrity="sha256-MASABpB4tYktI2Oitl4t+78w/lyA+D7b/s9GEP0JOGI=" crossorigin="anonymous"></script> <script src="/assets/al_math/js/mathjax-setup.js"></script> <script src="/assets/js/tooltips-setup.js?v=fe487e99db6c43751e6e7bdb2d6a0611"></script> <script src="/assets/js/no_defer.js?v=53b1b1a645525975c963ce8bf8bfefcf"></script> <script defer src="/assets/js/common.js?v=87baac90f765f2f3362dcf6aaf312a8a"></script> <script defer src="/assets/js/copy_code.js?v=c8a01c11a92744d44b093fc3bda915df" type="text/javascript"></script> <script defer src="/assets/js/jupyter_new_tab.js?v=896d254890d9b47f0281f63bfccf0dee"></script> <script async src="https://d1bxh8uas1mnw7.cloudfront.net/assets/embed.js"></script> <script async src="https://badge.dimensions.ai/badge.js"></script> <script defer src="https://cdn.jsdelivr.net/npm/medium-zoom@1.1.0/dist/medium-zoom.min.js" integrity="sha256-ZgMyDAIYDYGxbcpJcfUnYwNevG/xi9OHKaR/8GK+jWc=" crossorigin="anonymous"></script> <script defer src="/assets/al_img_tools/js/zoom.js"></script> <script defer src="/assets/js/progress-bar.js?v=499464c5c63ced6cf7ad62509f1e2610" type="text/javascript"></script> <script src="https://cdn.jsdelivr.net/npm/vanilla-back-to-top@7.2.1/dist/vanilla-back-to-top.min.js" integrity="sha256-uMJJ3EoTyfRBoTbR+lrfu1uRQ87RZG8AR3cVNuQVeFg=" crossorigin="anonymous"></script> <script>
+    addBackToTop();
+  </script> <script type="module" src="/assets/al_search/js/search/ninja-keys.min.js"></script> <ninja-keys hidebreadcrumbs noautoloadmdicons placeholder="Type to start searching"></ninja-keys> <script src="/assets/al_search/js/search-setup.js"></script> <script>
+// get the ninja-keys element
+const ninja = document.querySelector('ninja-keys');
+
+// add the home and posts menu items
+ninja.data = [{
+    id: "nav-about",
+    title: "About",
+    section: "Navigation",
+    handler: () => {
+      window.location.href = "/";
+    },
+  },{id: "nav-projects",
+          title: "Projects",
+          description: "",
+          section: "Navigation",
+          handler: () => {
+            window.location.href = "/#projects";
+          },
+        },{id: "nav-learning-hub",
+          title: "Learning Hub",
+          description: "Practical notes on servers, networking, Linux, security, and infrastructure automation.",
+          section: "Navigation",
+          handler: () => {
+            window.location.href = "/learn/index.html";
+          },
+        },{id: "nav-certifications",
+          title: "Certifications",
+          description: "Professional certifications across networking, cybersecurity, and infrastructure.",
+          section: "Navigation",
+          handler: () => {
+            window.location.href = "/certs/";
+          },
+        },{id: "post-diagnosing-wan-failures-beyond-physical-link-state",
+        
+          title: "Diagnosing WAN Failures Beyond Physical Link State",
+        
+        description: "A layered method for distinguishing Ethernet carrier loss, upstream path degradation, and application-level failure in redundant WAN designs.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/diagnosing-wan-failures/";
+          
+        },
+      },{id: "post-diagnosing-linux-critical-thermal-shutdowns",
+        
+          title: "Diagnosing Linux Critical Thermal Shutdowns",
+        
+        description: "A practical framework for distinguishing genuine silicon overheating from faulty thermal telemetry when Linux initiates a protective shutdown.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/linux-critical-thermal-shutdowns/";
+          
+        },
+      },{id: "post-wireguard-site-to-site-routing-with-selective-split-tunneling",
+        
+          title: "WireGuard Site-to-Site Routing with Selective Split Tunneling",
+        
+        description: "How WireGuard cryptokey routing, policy-based forwarding, firewall rules, NAT, and return paths combine in a selective site-to-site VPN design.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/wireguard-site-to-site-split-tunneling/";
+          
+        },
+      },{id: "post-building-and-transferring-docker-images-to-air-gapped-debian-systems",
+        
+          title: "Building and Transferring Docker Images to Air-Gapped Debian Systems",
+        
+        description: "A practical Debian-focused guide to Docker images, containers, offline Docker installation, and transferring workloads into air-gapped environments.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/docker-images-containers-air-gapped-debian/";
+          
+        },
+      },{id: "post-configuring-git-and-github-ssh-access-safely",
+        
+          title: "Configuring Git and GitHub SSH Access Safely",
+        
+        description: "A practical guide to configuring Git identity, setting up SSH authentication with GitHub, managing remotes, and pushing changes safely.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/configuring-git-github-ssh-access-safely/";
+          
+        },
+      },{id: "post-welcome-to-the-learning-hub",
+        
+          title: "Welcome to the Learning Hub",
+        
+        description: "A home for practical notes on infrastructure, networking, Linux, and automation.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/welcome-to-the-learning-hub/";
+          
+        },
+      },{
+        id: 'social-email',
+        title: 'email',
+        section: 'Socials',
+        handler: () => {
+          window.open("mailto:%68%61%72%73%68%76%65%72%6D%61%63%35@%67%6D%61%69%6C.%63%6F%6D", "_blank");
+        },
+      },{
+        id: 'social-github',
+        title: 'GitHub',
+        section: 'Socials',
+        handler: () => {
+          window.open("https://github.com/harshvermac5", "_blank");
+        },
+      },{
+        id: 'social-linkedin',
+        title: 'LinkedIn',
+        section: 'Socials',
+        handler: () => {
+          window.open("https://www.linkedin.com/in/harshvermac5", "_blank");
+        },
+      },{
+        id: 'social-rss',
+        title: 'RSS Feed',
+        section: 'Socials',
+        handler: () => {
+          window.open("/feed.xml", "_blank");
+        },
+      },{
+      id: 'light-theme',
+      title: 'Change theme to light',
+      description: 'Change the theme of the site to Light',
+      section: 'Theme',
+      handler: () => {
+        setThemeSetting("light");
+      },
+    },
+    {
+      id: 'dark-theme',
+      title: 'Change theme to dark',
+      description: 'Change the theme of the site to Dark',
+      section: 'Theme',
+      handler: () => {
+        setThemeSetting("dark");
+      },
+    },
+    {
+      id: 'system-theme',
+      title: 'Use system default theme',
+      description: 'Change the theme of the site to System Default',
+      section: 'Theme',
+      handler: () => {
+        setThemeSetting("system");
+      },
+    },];
+
+</script> <script src="/assets/al_search/js/shortcut-key.js"></script> </body> </html>
