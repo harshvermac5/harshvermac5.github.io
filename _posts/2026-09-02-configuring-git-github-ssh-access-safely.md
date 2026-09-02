@@ -68,7 +68,7 @@ Display only the public key:
 cat ~/.ssh/id_ed25519.pub
 ```
 
-Copy that value into the SSH key section of your GitHub account.
+Copy that value into the [SSH key section of your GitHub account](https://github.com/settings/ssh/new).
 
 ## Test GitHub SSH Authentication
 
