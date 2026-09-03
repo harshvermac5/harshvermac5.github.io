@@ -1,0 +1,234 @@
+<!DOCTYPE html> <html lang="en"> <head> <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"> <meta charset="utf-8"> <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no"> <meta http-equiv="X-UA-Compatible" content="IE=edge"> <title> When UPS Calibration State Becomes a Shutdown Hazard in Network UPS Tools | Harsh Verma </title> <meta name="author" content="Harsh Verma"> <meta name="description" content="A deep analysis of how stale NUT calibration state can turn a brief monitoring outage into an immediate infrastructure shutdown."> <meta name="keywords" content="server engineer, network engineer, linux, data center, infrastructure automation, portfolio"> <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https:; style-src 'self' 'unsafe-inline' https:; img-src 'self' data: https:; font-src 'self' data: https:; media-src 'self' https:; frame-src 'self' https:; connect-src 'self' https:;"> <style>
+  :root {
+    --max-content-width: 1100px;
+  }
+</style> <link rel="stylesheet" href="/assets/css/tailwind.css?v=50c64c15cbb9fd1ce6056fdb8bcb4b62"> <link defer rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.2.0/css/all.min.css" integrity="sha256-MVopmdyC2tYTiJ8wlktf0uh0v4NgT+vNdyVFepi7Q0c=" crossorigin="anonymous"> <link defer rel="stylesheet" href="https://cdn.jsdelivr.net/npm/academicons@1.9.5/css/academicons.min.css" integrity="sha256-SzrCOBJbGVFMahewkgjwnApaV2+av1DwMAA+/QGLyZw=" crossorigin="anonymous"> <link defer rel="stylesheet" href="https://cdn.jsdelivr.net/npm/scholar-icons@1.0.3/css/scholar-icons.css" integrity="sha256-VY3hHVj/hNX3fYG6wtbA6TcKJQl7+FthzGSyIB64klY=" crossorigin="anonymous"> <link defer rel="stylesheet" type="text/css" href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700|Roboto+Slab:100,300,400,500,700|Material+Icons&amp;display=swap"> <link defer rel="stylesheet" href="/assets/css/jekyll-pygments-themes-github.css?v=591dab5a4e56573bf4ef7fd332894c99" media="" id="highlight_theme_light"> <link rel="shortcut icon" href="data:image/svg+xml,&lt;svg%20xmlns=%22http://www.w3.org/2000/svg%22%20viewBox=%220%200%20100%20100%22&gt;&lt;text%20y=%22.9em%22%20font-size=%2290%22&gt;%F0%9F%96%A5%EF%B8%8F&lt;/text&gt;&lt;/svg&gt;"> <link rel="stylesheet" href="/assets/css/main.css?v=3116ba77db9ee1581d05bb3e86fbf7f1"> <link rel="canonical" href="https://harshvermac5.github.io/learn/2026/nut-calibration-state-failure/"> <script src="/assets/js/theme.js?v=5286c3e4c334d0ecb8fc0c40ff4fa7ec"></script> <link defer rel="stylesheet" href="/assets/css/jekyll-pygments-themes-native.css?v=5847e5ed4a4568527aa6cfab446049ca" media="none" id="highlight_theme_dark"> <script>
+    initTheme();
+  </script> </head> <body class="fixed-top-nav sticky-bottom-footer"> <header> <nav id="navbar" class="navbar navbar-light navbar-expand-sm fixed-top" role="navigation"> <div class="container"> <a class="navbar-brand title font-weight-lighter" href="/"> Harsh Verma </a> <button class="navbar-toggler collapsed navbar-toggler-main" type="button" data-nav-toggle="navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation"> <span class="sr-only">Toggle navigation</span> <span class="icon-bar top-bar"></span> <span class="icon-bar middle-bar"></span> <span class="icon-bar bottom-bar"></span> </button> <div class="collapse navbar-collapse navbar-collapse-main" id="navbarNav"> <ul class="navbar-nav navbar-menu-list flex-nowrap"> <li class="nav-item "> <a class="nav-link" href="/">About </a> </li> <li class="nav-item "> <a class="nav-link" href="/#projects">Projects </a> </li> <li class="nav-item active"> <a class="nav-link" href="/learn/index.html">Learning Hub </a> </li> <li class="nav-item "> <a class="nav-link" href="/certs/">Certifications </a> </li> <li class="nav-item"> <button id="search-toggle" type="button" title="Search" aria-label="Open search"> <span class="nav-link">ctrl k <i class="fa-solid fa-magnifying-glass"></i></span> </button> </li> <li class="toggle-container"> <button id="light-toggle" type="button" title="Change theme" aria-label="Change color theme"> <i class="fa-half-sun-moon" id="light-toggle-system"></i> <i class="fa-solid fa-moon" id="light-toggle-dark"></i> <i class="fa-solid fa-sun" id="light-toggle-light"></i> </button> </li> </ul> </div> </div> </nav> <progress id="progress" value="0"> <div class="progress-container"> <span class="progress-bar"></span> </div> </progress> </header> <div class="container mt-5" role="main"> <div class="post"> <header class="post-header"> <h1 class="post-title">When UPS Calibration State Becomes a Shutdown Hazard in Network UPS Tools</h1> <p class="post-meta"> Created on September 02, 2026 </p> <p class="post-tags"> <i class="fa-solid fa-calendar fa-sm"></i> 2026   ·   <i class="fa-solid fa-hashtag fa-sm"></i> nut   <i class="fa-solid fa-hashtag fa-sm"></i> linux   <i class="fa-solid fa-hashtag fa-sm"></i> ups   ·   <i class="fa-solid fa-tag fa-sm"></i> Infrastructure </p> </header> <article class="post-content"> <div id="markdown-content"> <h2 id="problem-statement-or-learning-objective">Problem Statement or Learning Objective</h2> <p>A UPS monitoring system makes shutdown decisions from two inputs: the <strong>last known electrical state</strong> of the UPS and the <strong>current ability to communicate with it</strong>. That interaction becomes dangerous when the last known state is wrong.</p> <p>The specific failure mode examined here is a stale <strong>calibration state</strong>. A UPS reports <code class="language-plaintext highlighter-rouge">CAL</code> while performing a battery self-test, returns to normal line power, but the monitoring path never observes the corresponding transition out of calibration. If communication later disappears, even briefly, a management daemon may interpret the combination of <strong>last known calibrating</strong> plus <strong>currently unreachable</strong> as a potentially exhausted or unsafe power source and initiate shutdown immediately.</p> <p>The core principle is broader than UPS monitoring: <strong>distributed control systems must treat transient states as transitions, not durable labels</strong>. If an endpoint asserts a temporary state, it must reliably publish its termination.</p> <h2 id="co-technical-subject">Co-Technical Subject</h2> <p><strong>Network UPS Tools state propagation, calibration lifecycle, and fail-safe shutdown semantics.</strong></p> <p>This topic sits at the intersection of Linux infrastructure management, distributed state machines, TCP client/server monitoring, and automated power-failure control.</p> <h2 id="theoretical-foundation">Theoretical Foundation</h2> <p>The Network UPS Tools protocol is documented in <strong>RFC 9271, published August 2022</strong>, describing NUT software 2.8.0 and protocol version 1.3. It is Informational rather than IETF Standards Track, but it documents the interoperable protocol model.</p> <p>RFC 9271 separates the architecture into an <strong>Attachment Daemon</strong>, which exposes UPS variables, and a <strong>Management Daemon</strong>, which polls those variables and makes operational decisions. These components may run on the same host or across a network. The protocol runs over <strong>TCP port 3493</strong>, registered by IANA as the <code class="language-plaintext highlighter-rouge">nut</code> service.</p> <p>A critical architectural property is that the wire protocol is mostly stateless while the management application is not. RFC 9271 explicitly states that the management daemon must retain the prior UPS state so it can derive events from transitions. The specification notes that <a href="https://www.rfc-editor.org/rfc/rfc9271.html#section-4" rel="external nofollow noopener" target="_blank">“The Management Daemon is required to remember the previous <code class="language-plaintext highlighter-rouge">ups.status</code> value”</a>.</p> <p>That makes transition correctness fundamental: the daemon evaluates both current state and change from the previous observation.</p> <p>The standard status model includes normal power states such as <code class="language-plaintext highlighter-rouge">OL</code> for online, <code class="language-plaintext highlighter-rouge">OB</code> for on battery, <code class="language-plaintext highlighter-rouge">LB</code> for low battery, and <code class="language-plaintext highlighter-rouge">FSD</code> for forced shutdown. NUT additionally defines <code class="language-plaintext highlighter-rouge">CAL</code> for calibration in progress and <code class="language-plaintext highlighter-rouge">NOTCAL</code> as the corresponding completion event in the monitoring layer. The official <code class="language-plaintext highlighter-rouge">upsmon</code> documentation describes <code class="language-plaintext highlighter-rouge">CAL</code> as <strong>UPS calibration in progress</strong> and <code class="language-plaintext highlighter-rouge">NOTCAL</code> as <strong>UPS calibration finished</strong>.</p> <p>NUT uses TCP, specified by <strong>RFC 9293 (2022)</strong>. TCP can deliver an ordered byte stream, but it cannot generate a missing application transition; a reliable connection cannot repair a missing <code class="language-plaintext highlighter-rouge">NOTCAL</code>.</p> <p>IANA lists <code class="language-plaintext highlighter-rouge">nut</code> on <strong>3493/TCP</strong> under the registry framework documented by <strong>RFC 6335 (2011)</strong>.</p> <h2 id="mechanism-breakdown">Mechanism Breakdown</h2> <p>During normal operation, the attachment side continuously publishes UPS variables including <code class="language-plaintext highlighter-rouge">ups.status</code>. A management daemon such as <code class="language-plaintext highlighter-rouge">upsmon</code> polls the server at a configured interval. NUT defaults <code class="language-plaintext highlighter-rouge">POLLFREQ</code> to five seconds under normal conditions and uses <code class="language-plaintext highlighter-rouge">POLLFREQALERT</code> when an alert condition exists.</p> <p>A normal calibration lifecycle conceptually looks like this:</p> <div class="language-text highlighter-rouge"><div class="highlight"><pre class="highlight"><code>OL
+  -&gt; self-test starts
+OL CAL
+  -&gt; self-test completes
+OL
+</code></pre></div></div> <p>The important property is that <strong>calibration is transient</strong>. Once the test ends, later reads must no longer contain <code class="language-plaintext highlighter-rouge">CAL</code>.</p> <p>Consider what happens if the final transition is lost at the producer:</p> <div class="language-text highlighter-rouge"><div class="highlight"><pre class="highlight"><code>T0  ups.status = OL
+T1  ups.status = OL CAL
+T2  physical self-test completes
+T3  exported ups.status remains OL CAL
+T4  server becomes unreachable
+</code></pre></div></div> <p>At <code class="language-plaintext highlighter-rouge">T3</code>, physical and exported state have diverged: power may be healthy while the management daemon retains a logically hazardous state.</p> <p>Communication-loss handling then becomes the second state machine. NUT normally allows a UPS to remain unreachable for a period controlled by <strong><code class="language-plaintext highlighter-rouge">DEADTIME</code></strong>. The <code class="language-plaintext highlighter-rouge">upsmon.conf</code> documentation states that the default is 15 seconds and explains that failed polls first make the data stale; only continued staleness beyond <code class="language-plaintext highlighter-rouge">DEADTIME</code> normally causes the UPS to be declared dead.</p> <p>A representative configuration is:</p> <div class="language-ini highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="na">MONITOR</span><span class="w"> </span><span class="na">ups@power-host</span><span class="w"> </span><span class="na">1</span><span class="w"> </span><span class="na">monitor</span><span class="w"> </span><span class="na">secret</span><span class="w"> </span><span class="na">secondary</span><span class="w">
+</span><span class="na">POLLFREQ</span><span class="w"> </span><span class="na">5</span><span class="w">
+</span><span class="na">POLLFREQALERT</span><span class="w"> </span><span class="na">5</span><span class="w">
+</span><span class="na">DEADTIME</span><span class="w"> </span><span class="na">15</span><span class="w">
+</span><span class="na">NOCOMMWARNTIME</span><span class="w"> </span><span class="na">300</span><span class="w">
+</span><span class="na">FINALDELAY</span><span class="w"> </span><span class="na">5</span><span class="w">
+</span></code></pre></div></div> <p>The design becomes conservative when the last known state implies battery operation. NUT documents that an unreachable UPS last known on battery may be assumed critical, because telemetry loss during battery operation carries different risk than telemetry loss while safely online.</p> <p>Calibration complicates the model because calibration commonly exercises the battery. In NUT 2.8.1 behavior documented in upstream issue 2794, an unreachable UPS whose cached state indicates calibration can take an immediate dead-UPS path. The reported log sequence contains the decisive message <a href="https://github.com/networkupstools/nut/issues/2794" rel="external nofollow noopener" target="_blank">“was last known to be calibrating and currently is not communicating, assuming dead”</a>.</p> <p>Therefore, increasing <code class="language-plaintext highlighter-rouge">DEADTIME</code> may not help when a special calibration safety branch applies. The decision is driven by <strong>state classification before communication failure</strong>, not only outage duration.</p> <h2 id="industry-standards-reference">Industry Standards Reference</h2> <p><strong>RFC 9271 (2022)</strong> documents NUT protocol 1.3, its client/server architecture, variable model, <code class="language-plaintext highlighter-rouge">ups.status</code>, and previous-versus-current state comparison.</p> <p><strong>RFC 9293 (2022)</strong> defines TCP, the transport used by NUT; transport reliability does not repair incorrect application state.</p> <p><strong>RFC 6335 (2011)</strong> defines IANA service-name and port registration procedures; IANA assigns <strong>3493/TCP</strong> to <code class="language-plaintext highlighter-rouge">nut</code>.</p> <p>The <strong>NUT <code class="language-plaintext highlighter-rouge">upsmon(8)</code> and <code class="language-plaintext highlighter-rouge">upsmon.conf(5)</code> documentation</strong> defines <code class="language-plaintext highlighter-rouge">CAL</code>, <code class="language-plaintext highlighter-rouge">NOTCAL</code>, polling timers, <code class="language-plaintext highlighter-rouge">DEADTIME</code>, and shutdown behavior.</p> <p>Upstream <strong>NUT issue 2794, opened in 2025</strong>, provides independent field evidence for the calibrating-then-unreachable shutdown path in NUT 2.8.1.</p> <h2 id="practical-examples-and-evidence">Practical Examples and Evidence</h2> <p>The first diagnostic task is to inspect the authoritative exported state rather than infer it from a graphical dashboard or battery percentage.</p> <div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>upsc ups@power-host
+</code></pre></div></div> <p>A healthy post-calibration result should resemble:</p> <div class="language-text highlighter-rouge"><div class="highlight"><pre class="highlight"><code>battery.charge: 100
+ups.status: OL
+</code></pre></div></div> <p>A suspicious result after the physical self-test has completed is:</p> <div class="language-text highlighter-rouge"><div class="highlight"><pre class="highlight"><code>battery.charge: 100
+ups.status: OL CAL
+</code></pre></div></div> <p><code class="language-plaintext highlighter-rouge">OL CAL</code> is not inherently contradictory during an active self-test. The problem is persistence after the calibration has physically ended.</p> <p>For repeated observation, sample the variable over time:</p> <div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">while </span><span class="nb">true</span><span class="p">;</span> <span class="k">do
+    </span><span class="nb">date</span> <span class="nt">--iso-8601</span><span class="o">=</span>seconds
+    upsc ups@power-host ups.status
+    <span class="nb">sleep </span>5
+<span class="k">done</span>
+</code></pre></div></div> <p>Expected transition evidence is conceptually:</p> <div class="language-text highlighter-rouge"><div class="highlight"><pre class="highlight"><code>2026-09-02T01:00:00+00:00
+OL
+2026-09-02T01:05:00+00:00
+OL CAL
+2026-09-02T01:05:20+00:00
+OL
+</code></pre></div></div> <p>If the final <code class="language-plaintext highlighter-rouge">OL</code> never appears, the defect is upstream of <code class="language-plaintext highlighter-rouge">upsmon</code>: the attachment side continues exporting stale state. Restarting a client can clear its cached history, but it cannot correct the producer’s state machine.</p> <p>For safe validation, replace the real shutdown action before intentionally interrupting the server:</p> <div class="language-ini highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="na">SHUTDOWNCMD</span><span class="w"> </span><span class="na">"/usr/local/sbin/log-would-shutdown"</span><span class="w">
+</span></code></pre></div></div> <p>This proves decision logic without halting workloads.</p> <h2 id="key-technical-insights">Key Technical Insights</h2> <ul> <li> <strong>State transitions are part of the API contract.</strong> Publishing <code class="language-plaintext highlighter-rouge">CAL</code> without reliably withdrawing it is equivalent to leaving a distributed lock permanently asserted.</li> <li> <strong>Last-known state can outweigh current reachability timers.</strong> Fail-safe software often treats communication loss differently depending on whether the previous state was safe, degraded, or hazardous.</li> <li> <strong><code class="language-plaintext highlighter-rouge">DEADTIME</code> is not a universal debounce mechanism.</strong> Special safety branches may bypass ordinary stale-data timers when the cached state implies battery discharge or another critical condition.</li> <li> <strong>Transport reliability and semantic correctness are separate problems.</strong> TCP can deliver every byte correctly while the application still exports a permanently incorrect status token.</li> <li> <strong>Telemetry ownership matters.</strong> The component that originates <code class="language-plaintext highlighter-rouge">ups.status</code> must own the lifecycle of temporary flags. A controller or dashboard cannot safely invent a missing state transition unless it has independent electrical evidence.</li> <li> <strong>Composite states require careful interpretation.</strong> A status such as <code class="language-plaintext highlighter-rouge">OL CAL</code> combines source-power and activity information. Automation must evaluate the complete state vector rather than treating each token as independent trivia.</li> <li> <strong>Safety-oriented automation intentionally favors false positives over catastrophic false negatives.</strong> Immediate shutdown may appear aggressive, but the logic is understandable when calibration implies battery use and telemetry suddenly disappears.</li> </ul> <h2 id="prevention-strategies-and-takeaways">Prevention Strategies and Takeaways</h2> <p>Test temporary state flags as complete lifecycles: prove that <code class="language-plaintext highlighter-rouge">CAL</code> appears at test start, disappears at completion, and is observed by downstream clients.</p> <p>Monitor <code class="language-plaintext highlighter-rouge">ups.status</code> directly, retain timestamped history, and alert when <code class="language-plaintext highlighter-rouge">CAL</code> persists beyond the expected self-test window. This exposes stale state before a restart or network interruption does.</p> <p>Test <strong>electrical-state transitions</strong> separately from <strong>communication-loss transitions</strong>. Behavior with cached <code class="language-plaintext highlighter-rouge">OL</code> may differ sharply from cached <code class="language-plaintext highlighter-rouge">OB</code>, <code class="language-plaintext highlighter-rouge">LB</code>, or <code class="language-plaintext highlighter-rouge">CAL</code>.</p> <p>Treat daemon restarts, reloads, upgrades, and network reconvergence as expected failure inputs. The monitoring channel can disappear without the protected load losing power.</p> <p>Do not use longer timers as a substitute for correct state. If calibration completion is missing, the durable fix belongs at the state producer. Robust designs keep <strong>physical state, exported state, cached state, and shutdown policy causally aligned</strong>.</p> </div> </article> <br> <hr> <br> <h2 class="text-3xl font-semibold mb-4 mt-12">Enjoy Reading This Article?</h2> <p class="mb-2">Here are some more articles you might like to read next:</p> <ul class="list-disc pl-7 my-3 space-y-2 marker:text-[var(--global-theme-color)]"> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/sfp-plus-link-flaps/">When 10GBASE-T SFP+ Modules Destabilize Ethernet Links</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/ipsec-phase2-selectors/">IPsec Phase 2 Traffic Selectors and Partial Tunnel Failures</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/diagnosing-wan-failures/">Diagnosing WAN Failures Beyond Physical Link State</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/linux-critical-thermal-shutdowns/">Diagnosing Linux Critical Thermal Shutdowns</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/wireguard-site-to-site-split-tunneling/">WireGuard Site-to-Site Routing with Selective Split Tunneling</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/docker-images-containers-air-gapped-debian/">Building and Transferring Docker Images to Air-Gapped Debian Systems</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/configuring-git-github-ssh-access-safely/">Configuring Git and GitHub SSH Access Safely</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/welcome-to-the-learning-hub/">Welcome to the Learning Hub</a> </li> </ul> </div> </div> <footer class="sticky-bottom mt-5" role="contentinfo"> <div class="container"> © Copyright 2026 Harsh Verma. Built with <a href="https://jekyllrb.com/" target="_blank" rel="external nofollow noopener">Jekyll</a> and <a href="https://github.com/alshedivat/al-folio" target="_blank" rel="external nofollow noopener">al-folio</a>. Hosted on GitHub Pages. </div> </footer> <script>
+  window.alFolio = {
+    compatBootstrap: false
+  };
+</script> <script src="/assets/js/nav-toggle.js?v=141bd79a73ebc0f0b6ea58e440ae79fc"></script> <script defer src="https://cdn.jsdelivr.net/npm/masonry-layout@4.2.2/dist/masonry.pkgd.min.js" integrity="sha256-Nn1q/fx0H7SNLZMQ5Hw5JLaTRZp0yILA/FRexe19VdI=" crossorigin="anonymous"></script> <script defer src="https://cdn.jsdelivr.net/npm/imagesloaded@5.0.0/imagesloaded.pkgd.min.js" integrity="sha256-htrLFfZJ6v5udOG+3kNLINIKh2gvoKqwEhHYfTTMICc=" crossorigin="anonymous"></script> <script defer src="/assets/js/masonry.js?v=e49affc7bd2646f6acdad1dbe02c2359" type="text/javascript"></script> <script defer type="text/javascript" id="MathJax-script" src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-mml-chtml.js" integrity="sha256-MASABpB4tYktI2Oitl4t+78w/lyA+D7b/s9GEP0JOGI=" crossorigin="anonymous"></script> <script src="/assets/al_math/js/mathjax-setup.js"></script> <script src="/assets/js/tooltips-setup.js?v=fe487e99db6c43751e6e7bdb2d6a0611"></script> <script src="/assets/js/no_defer.js?v=53b1b1a645525975c963ce8bf8bfefcf"></script> <script defer src="/assets/js/common.js?v=87baac90f765f2f3362dcf6aaf312a8a"></script> <script defer src="/assets/js/copy_code.js?v=c8a01c11a92744d44b093fc3bda915df" type="text/javascript"></script> <script defer src="/assets/js/jupyter_new_tab.js?v=896d254890d9b47f0281f63bfccf0dee"></script> <script async src="https://d1bxh8uas1mnw7.cloudfront.net/assets/embed.js"></script> <script async src="https://badge.dimensions.ai/badge.js"></script> <script defer src="https://cdn.jsdelivr.net/npm/medium-zoom@1.1.0/dist/medium-zoom.min.js" integrity="sha256-ZgMyDAIYDYGxbcpJcfUnYwNevG/xi9OHKaR/8GK+jWc=" crossorigin="anonymous"></script> <script defer src="/assets/al_img_tools/js/zoom.js"></script> <script defer src="/assets/js/progress-bar.js?v=499464c5c63ced6cf7ad62509f1e2610" type="text/javascript"></script> <script src="https://cdn.jsdelivr.net/npm/vanilla-back-to-top@7.2.1/dist/vanilla-back-to-top.min.js" integrity="sha256-uMJJ3EoTyfRBoTbR+lrfu1uRQ87RZG8AR3cVNuQVeFg=" crossorigin="anonymous"></script> <script>
+    addBackToTop();
+  </script> <script type="module" src="/assets/al_search/js/search/ninja-keys.min.js"></script> <ninja-keys hidebreadcrumbs noautoloadmdicons placeholder="Type to start searching"></ninja-keys> <script src="/assets/al_search/js/search-setup.js"></script> <script>
+// get the ninja-keys element
+const ninja = document.querySelector('ninja-keys');
+
+// add the home and posts menu items
+ninja.data = [{
+    id: "nav-about",
+    title: "About",
+    section: "Navigation",
+    handler: () => {
+      window.location.href = "/";
+    },
+  },{id: "nav-projects",
+          title: "Projects",
+          description: "",
+          section: "Navigation",
+          handler: () => {
+            window.location.href = "/#projects";
+          },
+        },{id: "nav-learning-hub",
+          title: "Learning Hub",
+          description: "Practical notes on servers, networking, Linux, security, and infrastructure automation.",
+          section: "Navigation",
+          handler: () => {
+            window.location.href = "/learn/index.html";
+          },
+        },{id: "nav-certifications",
+          title: "Certifications",
+          description: "Professional certifications across networking, cybersecurity, and infrastructure.",
+          section: "Navigation",
+          handler: () => {
+            window.location.href = "/certs/";
+          },
+        },{id: "post-when-10gbase-t-sfp-modules-destabilize-ethernet-links",
+        
+          title: "When 10GBASE-T SFP+ Modules Destabilize Ethernet Links",
+        
+        description: "How SFP+ module identification, PHY mode selection, and repeated link-state transitions can collapse TCP throughput even when an interface nominally reports 10 Gb/s.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/sfp-plus-link-flaps/";
+          
+        },
+      },{id: "post-ipsec-phase-2-traffic-selectors-and-partial-tunnel-failures",
+        
+          title: "IPsec Phase 2 Traffic Selectors and Partial Tunnel Failures",
+        
+        description: "Why an IPsec tunnel can remain established while one subnet pair fails because routing state and negotiated traffic selectors are separate control-plane objects.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/ipsec-phase2-selectors/";
+          
+        },
+      },{id: "post-when-ups-calibration-state-becomes-a-shutdown-hazard-in-network-ups-tools",
+        
+          title: "When UPS Calibration State Becomes a Shutdown Hazard in Network UPS Tools",
+        
+        description: "A deep analysis of how stale NUT calibration state can turn a brief monitoring outage into an immediate infrastructure shutdown.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/nut-calibration-state-failure/";
+          
+        },
+      },{id: "post-diagnosing-wan-failures-beyond-physical-link-state",
+        
+          title: "Diagnosing WAN Failures Beyond Physical Link State",
+        
+        description: "A layered method for distinguishing Ethernet carrier loss, upstream path degradation, and application-level failure in redundant WAN designs.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/diagnosing-wan-failures/";
+          
+        },
+      },{id: "post-diagnosing-linux-critical-thermal-shutdowns",
+        
+          title: "Diagnosing Linux Critical Thermal Shutdowns",
+        
+        description: "A practical framework for distinguishing genuine silicon overheating from faulty thermal telemetry when Linux initiates a protective shutdown.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/linux-critical-thermal-shutdowns/";
+          
+        },
+      },{id: "post-wireguard-site-to-site-routing-with-selective-split-tunneling",
+        
+          title: "WireGuard Site-to-Site Routing with Selective Split Tunneling",
+        
+        description: "How WireGuard cryptokey routing, policy-based forwarding, firewall rules, NAT, and return paths combine in a selective site-to-site VPN design.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/wireguard-site-to-site-split-tunneling/";
+          
+        },
+      },{id: "post-building-and-transferring-docker-images-to-air-gapped-debian-systems",
+        
+          title: "Building and Transferring Docker Images to Air-Gapped Debian Systems",
+        
+        description: "A practical Debian-focused guide to Docker images, containers, offline Docker installation, and transferring workloads into air-gapped environments.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/docker-images-containers-air-gapped-debian/";
+          
+        },
+      },{id: "post-configuring-git-and-github-ssh-access-safely",
+        
+          title: "Configuring Git and GitHub SSH Access Safely",
+        
+        description: "A practical guide to configuring Git identity, setting up SSH authentication with GitHub, managing remotes, and pushing changes safely.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/configuring-git-github-ssh-access-safely/";
+          
+        },
+      },{id: "post-welcome-to-the-learning-hub",
+        
+          title: "Welcome to the Learning Hub",
+        
+        description: "A home for practical notes on infrastructure, networking, Linux, and automation.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/welcome-to-the-learning-hub/";
+          
+        },
+      },{
+        id: 'social-email',
+        title: 'email',
+        section: 'Socials',
+        handler: () => {
+          window.open("mailto:%68%61%72%73%68%76%65%72%6D%61%63%35@%67%6D%61%69%6C.%63%6F%6D", "_blank");
+        },
+      },{
+        id: 'social-github',
+        title: 'GitHub',
+        section: 'Socials',
+        handler: () => {
+          window.open("https://github.com/harshvermac5", "_blank");
+        },
+      },{
+        id: 'social-linkedin',
+        title: 'LinkedIn',
+        section: 'Socials',
+        handler: () => {
+          window.open("https://www.linkedin.com/in/harshvermac5", "_blank");
+        },
+      },{
+        id: 'social-rss',
+        title: 'RSS Feed',
+        section: 'Socials',
+        handler: () => {
+          window.open("/feed.xml", "_blank");
+        },
+      },{
+      id: 'light-theme',
+      title: 'Change theme to light',
+      description: 'Change the theme of the site to Light',
+      section: 'Theme',
+      handler: () => {
+        setThemeSetting("light");
+      },
+    },
+    {
+      id: 'dark-theme',
+      title: 'Change theme to dark',
+      description: 'Change the theme of the site to Dark',
+      section: 'Theme',
+      handler: () => {
+        setThemeSetting("dark");
+      },
+    },
+    {
+      id: 'system-theme',
+      title: 'Use system default theme',
+      description: 'Change the theme of the site to System Default',
+      section: 'Theme',
+      handler: () => {
+        setThemeSetting("system");
+      },
+    },];
+
+</script> <script src="/assets/al_search/js/shortcut-key.js"></script> </body> </html>

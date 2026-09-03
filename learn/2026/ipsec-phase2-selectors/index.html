@@ -1,0 +1,219 @@
+<!DOCTYPE html> <html lang="en"> <head> <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"> <meta charset="utf-8"> <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no"> <meta http-equiv="X-UA-Compatible" content="IE=edge"> <title> IPsec Phase 2 Traffic Selectors and Partial Tunnel Failures | Harsh Verma </title> <meta name="author" content="Harsh Verma"> <meta name="description" content="Why an IPsec tunnel can remain established while one subnet pair fails because routing state and negotiated traffic selectors are separate control-plane objects."> <meta name="keywords" content="server engineer, network engineer, linux, data center, infrastructure automation, portfolio"> <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https:; style-src 'self' 'unsafe-inline' https:; img-src 'self' data: https:; font-src 'self' data: https:; media-src 'self' https:; frame-src 'self' https:; connect-src 'self' https:;"> <style>
+  :root {
+    --max-content-width: 1100px;
+  }
+</style> <link rel="stylesheet" href="/assets/css/tailwind.css?v=50c64c15cbb9fd1ce6056fdb8bcb4b62"> <link defer rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.2.0/css/all.min.css" integrity="sha256-MVopmdyC2tYTiJ8wlktf0uh0v4NgT+vNdyVFepi7Q0c=" crossorigin="anonymous"> <link defer rel="stylesheet" href="https://cdn.jsdelivr.net/npm/academicons@1.9.5/css/academicons.min.css" integrity="sha256-SzrCOBJbGVFMahewkgjwnApaV2+av1DwMAA+/QGLyZw=" crossorigin="anonymous"> <link defer rel="stylesheet" href="https://cdn.jsdelivr.net/npm/scholar-icons@1.0.3/css/scholar-icons.css" integrity="sha256-VY3hHVj/hNX3fYG6wtbA6TcKJQl7+FthzGSyIB64klY=" crossorigin="anonymous"> <link defer rel="stylesheet" type="text/css" href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700|Roboto+Slab:100,300,400,500,700|Material+Icons&amp;display=swap"> <link defer rel="stylesheet" href="/assets/css/jekyll-pygments-themes-github.css?v=591dab5a4e56573bf4ef7fd332894c99" media="" id="highlight_theme_light"> <link rel="shortcut icon" href="data:image/svg+xml,&lt;svg%20xmlns=%22http://www.w3.org/2000/svg%22%20viewBox=%220%200%20100%20100%22&gt;&lt;text%20y=%22.9em%22%20font-size=%2290%22&gt;%F0%9F%96%A5%EF%B8%8F&lt;/text&gt;&lt;/svg&gt;"> <link rel="stylesheet" href="/assets/css/main.css?v=3116ba77db9ee1581d05bb3e86fbf7f1"> <link rel="canonical" href="https://harshvermac5.github.io/learn/2026/ipsec-phase2-selectors/"> <script src="/assets/js/theme.js?v=5286c3e4c334d0ecb8fc0c40ff4fa7ec"></script> <link defer rel="stylesheet" href="/assets/css/jekyll-pygments-themes-native.css?v=5847e5ed4a4568527aa6cfab446049ca" media="none" id="highlight_theme_dark"> <script>
+    initTheme();
+  </script> </head> <body class="fixed-top-nav sticky-bottom-footer"> <header> <nav id="navbar" class="navbar navbar-light navbar-expand-sm fixed-top" role="navigation"> <div class="container"> <a class="navbar-brand title font-weight-lighter" href="/"> Harsh Verma </a> <button class="navbar-toggler collapsed navbar-toggler-main" type="button" data-nav-toggle="navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation"> <span class="sr-only">Toggle navigation</span> <span class="icon-bar top-bar"></span> <span class="icon-bar middle-bar"></span> <span class="icon-bar bottom-bar"></span> </button> <div class="collapse navbar-collapse navbar-collapse-main" id="navbarNav"> <ul class="navbar-nav navbar-menu-list flex-nowrap"> <li class="nav-item "> <a class="nav-link" href="/">About </a> </li> <li class="nav-item "> <a class="nav-link" href="/#projects">Projects </a> </li> <li class="nav-item active"> <a class="nav-link" href="/learn/index.html">Learning Hub </a> </li> <li class="nav-item "> <a class="nav-link" href="/certs/">Certifications </a> </li> <li class="nav-item"> <button id="search-toggle" type="button" title="Search" aria-label="Open search"> <span class="nav-link">ctrl k <i class="fa-solid fa-magnifying-glass"></i></span> </button> </li> <li class="toggle-container"> <button id="light-toggle" type="button" title="Change theme" aria-label="Change color theme"> <i class="fa-half-sun-moon" id="light-toggle-system"></i> <i class="fa-solid fa-moon" id="light-toggle-dark"></i> <i class="fa-solid fa-sun" id="light-toggle-light"></i> </button> </li> </ul> </div> </div> </nav> <progress id="progress" value="0"> <div class="progress-container"> <span class="progress-bar"></span> </div> </progress> </header> <div class="container mt-5" role="main"> <div class="post"> <header class="post-header"> <h1 class="post-title">IPsec Phase 2 Traffic Selectors and Partial Tunnel Failures</h1> <p class="post-meta"> Created on September 03, 2026 </p> <p class="post-tags"> <i class="fa-solid fa-calendar fa-sm"></i> 2026   ·   <i class="fa-solid fa-hashtag fa-sm"></i> ipsec   <i class="fa-solid fa-hashtag fa-sm"></i> ike   <i class="fa-solid fa-hashtag fa-sm"></i> vpn   ·   <i class="fa-solid fa-tag fa-sm"></i> Networking </p> </header> <article class="post-content"> <div id="markdown-content"> <h2 id="problem-statement-or-learning-objective">Problem Statement or Learning Objective</h2> <p>An IPsec VPN can appear healthy while traffic for one protected subnet silently fails. The core principle is that <strong>tunnel reachability, routing, IKE state, and IPsec traffic selectors are separate pieces of state</strong>. A route toward a remote prefix does not prove that an IPsec Security Association exists for that prefix, and an established IKE session does not prove that every intended subnet pair has a usable Phase 2 SA.</p> <p>This distinction matters most in multi-subnet site-to-site VPNs, where one selector pair can remain healthy while another disappears.</p> <p>The diagnostic objective is therefore to verify the complete chain: <strong>route → security policy → negotiated selector → installed SA → encrypted traffic</strong>.</p> <h2 id="co-technical-subject">Co-Technical Subject</h2> <p><strong>IPsec Security Association and Traffic Selector Negotiation</strong></p> <p>The topic spans the IPsec Security Policy Database, IKEv1 Quick Mode, IKEv2 Child SAs, route-based VPNs, and Linux XFRM state.</p> <h2 id="theoretical-foundation">Theoretical Foundation</h2> <p>The architectural foundation is <strong>RFC 4301, Security Architecture for the Internet Protocol, December 2005</strong>. IPsec does not protect traffic merely because a route points toward a tunnel. RFC 4301 defines a <strong>Security Policy Database (SPD)</strong> whose selectors determine whether a packet is protected, bypassed, or discarded. The specification states that <a href="https://www.rfc-editor.org/rfc/rfc4301.html" rel="external nofollow noopener" target="_blank">“packets are selected for one of three processing actions”</a>: <strong>PROTECT</strong>, <strong>BYPASS</strong>, or <strong>DISCARD</strong>.</p> <p>An SPD entry can match local and remote address ranges, upper-layer protocol, and ports. These selectors define the granularity of the SAs that protect traffic. The corresponding cryptographic state is stored in the <strong>Security Association Database (SAD)</strong>.</p> <p>For legacy IKEv1, <strong>RFC 2409, The Internet Key Exchange, November 1998</strong>, defines Phase 2 <strong>Quick Mode</strong>. The RFC describes Quick Mode as <a href="https://www.rfc-editor.org/rfc/rfc2409.html" rel="external nofollow noopener" target="_blank">“used as part of the SA negotiation process (phase 2)”</a>. The IPsec identities used during IKEv1 negotiation are defined by <strong>RFC 2407, November 1998</strong>, including <code class="language-plaintext highlighter-rouge">ID_IPV4_ADDR_SUBNET</code> for subnet selectors.</p> <p>IKEv2 modernizes this model. <strong>RFC 7296, Internet Key Exchange Protocol Version 2, October 2014</strong>, uses <strong>TSi</strong> and <strong>TSr</strong> payloads to express the traffic protected by a Child SA. RFC 7296 states that <a href="https://www.rfc-editor.org/rfc/rfc7296.html" rel="external nofollow noopener" target="_blank">“Traffic Selector (TS) payloads allow endpoints to communicate some of the information from their SPD to their peers”</a>.</p> <p>IKEv1 remains common in legacy interoperability scenarios, but it is no longer recommended for new deployments. <strong>RFC 9395, April 2023</strong> formally deprecated IKEv1 and moved RFCs 2407, 2408, and 2409 to Historic status. Its guidance is explicit: <a href="https://www.rfc-editor.org/rfc/rfc9395.html" rel="external nofollow noopener" target="_blank">“systems running IKEv1 should be upgraded and reconfigured to run IKEv2”</a>.</p> <h2 id="mechanism-breakdown">Mechanism Breakdown</h2> <p>A multi-subnet site-to-site VPN contains several independent state machines and databases.</p> <ul> <li> <strong>Routing</strong> decides where plaintext traffic should be forwarded. A route can point a destination prefix toward a VTI, XFRM interface, tunnel interface, or next hop.</li> <li> <strong>Security policy</strong> determines whether that traffic must use IPsec and which selectors describe the protected flow.</li> <li> <strong>IKE</strong> negotiates cryptographic parameters and the identities or traffic selectors that both peers agree to protect.</li> <li> <strong>SAD/XFRM state</strong> contains the installed ESP SAs used for actual packet encryption and decryption.</li> </ul> <p>In IKEv1, Phase 1 establishes the ISAKMP/IKE SA between the two peers. Phase 2 then runs Quick Mode to negotiate one or more IPsec SAs. A healthy Phase 1 therefore says only that the peers can authenticate and exchange protected IKE messages. It says nothing about whether every subnet pair has completed Quick Mode.</p> <p>Consider one local prefix and two remote prefixes:</p> <div class="language-text highlighter-rouge"><div class="highlight"><pre class="highlight"><code>Local:    172.16.100.0/24
+Remote A: 10.10.0.0/16
+Remote B: 10.20.0.0/16
+</code></pre></div></div> <p>The peer may successfully negotiate only:</p> <div class="language-text highlighter-rouge"><div class="highlight"><pre class="highlight"><code>172.16.100.0/24 &lt;-&gt; 10.10.0.0/16
+</code></pre></div></div> <p>while never negotiating:</p> <div class="language-text highlighter-rouge"><div class="highlight"><pre class="highlight"><code>172.16.100.0/24 &lt;-&gt; 10.20.0.0/16
+</code></pre></div></div> <p>The IKE session remains established, ESP counters may continue increasing for Remote A, and monitoring may report the VPN as healthy. Remote B still fails because no matching IPsec SA exists.</p> <p>A subtle design issue appears with <strong>route-based VPNs</strong>. “Route-based” is an implementation architecture rather than a different IPsec protocol. RFC 4301 remains policy-driven underneath. Some platforms use broad selectors such as <code class="language-plaintext highlighter-rouge">0.0.0.0/0 &lt;-&gt; 0.0.0.0/0</code>, then use routes and interface identifiers to steer traffic. Others negotiate narrow selectors while still presenting a routed tunnel interface.</p> <p>A configured <strong>remote network list</strong> may create routes, SPD entries, IKE selectors, or some combination of them. A management-plane prefix is therefore not automatically equivalent to an IKE selector.</p> <p>If only one peer initiates a narrow selector, the other gateway may never recreate that SA when the initiator stops proposing it, even though routing still contains the remote prefix.</p> <h2 id="industry-standards-reference">Industry Standards Reference</h2> <p>The standards that govern this behavior are:</p> <ul> <li> <strong>RFC 4301 — Security Architecture for the Internet Protocol, 2005.</strong> Defines SPD, SAD, selectors, and packet processing for IPsec.</li> <li> <strong>RFC 7296 — Internet Key Exchange Protocol Version 2, 2014.</strong> Defines IKEv2, Child SAs, and TSi/TSr traffic-selector negotiation.</li> <li> <strong>RFC 2409 — The Internet Key Exchange, 1998.</strong> Defines IKEv1 Phase 1 and Quick Mode Phase 2; now Historic.</li> <li> <strong>RFC 2407 — IP Security Domain of Interpretation for ISAKMP, 1998.</strong> Defines IKEv1 IPsec identification types such as IPv4 subnet identities; now Historic.</li> <li> <strong>RFC 9395 — Deprecation of IKEv1, 2023.</strong> Moves the IKEv1 RFC set to Historic status and recommends migration to IKEv2.</li> </ul> <p>For new designs, use <strong>IKEv2</strong> unless a legacy interoperability constraint requires IKEv1.</p> <h2 id="practical-examples-and-evidence">Practical Examples and Evidence</h2> <p>On Linux, <code class="language-plaintext highlighter-rouge">ip route</code> proves routing state but not IPsec protection:</p> <div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>ip route show 10.20.0.0/16
+</code></pre></div></div> <p>A route may exist:</p> <div class="language-text highlighter-rouge"><div class="highlight"><pre class="highlight"><code>10.20.0.0/16 dev xfrm0 scope link
+</code></pre></div></div> <p>Now inspect the actual IPsec policy:</p> <div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>ip xfrm policy
+</code></pre></div></div> <p>A healthy selector might appear as:</p> <div class="language-text highlighter-rouge"><div class="highlight"><pre class="highlight"><code>src 172.16.100.0/24 dst 10.10.0.0/16
+    dir out priority 100
+    tmpl src 198.51.100.10 dst 203.0.113.20
+    proto esp mode tunnel
+</code></pre></div></div> <p>If there is no equivalent policy for <code class="language-plaintext highlighter-rouge">10.20.0.0/16</code>, the route alone is insufficient.</p> <p>Inspect installed ESP state as well:</p> <div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>ip xfrm state
+</code></pre></div></div> <p>The presence of state for Remote A but not Remote B strongly localizes the failure to policy or SA negotiation rather than ordinary IP routing.</p> <p>For IKEv1, daemon logs should be searched for Quick Mode activity involving the missing subnet. A conceptual successful exchange looks like:</p> <div class="language-text highlighter-rouge"><div class="highlight"><pre class="highlight"><code>received QUICK_MODE request
+IDci: 10.20.0.0/16
+IDcr: 172.16.100.0/24
+proposal accepted
+IPsec SA installed
+</code></pre></div></div> <p>Absence of any proposal for the subnet is materially different from an explicit rejection. Messages such as <code class="language-plaintext highlighter-rouge">NO_PROPOSAL_CHOSEN</code>, identity mismatch, or unacceptable selector indicate negotiation occurred and failed. No matching Quick Mode or TS messages indicate that the selector may never have been proposed.</p> <h2 id="key-technical-insights">Key Technical Insights</h2> <ul> <li> <strong>“Tunnel up” is not a complete health signal.</strong> IKE liveness and per-selector IPsec state must be monitored separately.</li> <li> <strong>A route is not a Security Association.</strong> The FIB answers where traffic should go; the SPD/SAD determine whether IPsec can actually protect it.</li> <li> <strong>Multi-subnet tunnels can fail partially.</strong> One selector pair can remain healthy while another disappears.</li> <li> <strong>Initiation behavior matters.</strong> If only one peer generates a particular selector, the tunnel depends on that peer continuing to initiate or rekey it.</li> <li> <strong>No proposal and rejected proposal are different failure classes.</strong> Search IKE logs for evidence of the missing selector before changing firewall policy.</li> <li> <strong>Route-based does not mean selector-free.</strong> Implementations may hide selector behavior behind a virtual interface, broad traffic selectors, policy marks, or generated SPD entries.</li> <li> <strong>Firewall evidence must be placed in packet-processing order.</strong> If the required IPsec policy or SA does not exist, changing a later-stage firewall rule cannot create it.</li> </ul> <h2 id="prevention-strategies-and-takeaways">Prevention Strategies and Takeaways</h2> <ul> <li>Prefer <strong>IKEv2</strong> for new deployments and migrations.</li> <li>Explicitly document every intended local/remote selector pair, even when the platform presents a route-based abstraction.</li> <li>Verify how each implementation maps configured remote prefixes into <strong>routes, SPD entries, and IKE traffic selectors</strong>.</li> <li>Monitor per-Child-SA or per-Phase-2 state instead of relying only on peer-level tunnel status.</li> <li>During troubleshooting, compare <code class="language-plaintext highlighter-rouge">ip route</code>, <code class="language-plaintext highlighter-rouge">ip xfrm policy</code>, <code class="language-plaintext highlighter-rouge">ip xfrm state</code>, IKE negotiation logs, and ESP counters.</li> <li>Treat a missing selector as an IKE/SPD problem until evidence shows that the selector is installed and traffic reaches a later firewall stage.</li> <li>When interoperating across different implementations, test tunnel recovery after peer restarts, rekeys, configuration reloads, and loss of individual SAs.</li> </ul> <p>The durable lesson is simple: <strong>IPsec connectivity is established per security policy and SA, not merely per peer</strong>. A VPN can be cryptographically alive yet operationally incomplete. The fastest path to root cause is to inspect the exact selector state that protects the failing traffic.</p> </div> </article> <br> <hr> <br> <h2 class="text-3xl font-semibold mb-4 mt-12">Enjoy Reading This Article?</h2> <p class="mb-2">Here are some more articles you might like to read next:</p> <ul class="list-disc pl-7 my-3 space-y-2 marker:text-[var(--global-theme-color)]"> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/sfp-plus-link-flaps/">When 10GBASE-T SFP+ Modules Destabilize Ethernet Links</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/nut-calibration-state-failure/">When UPS Calibration State Becomes a Shutdown Hazard in Network UPS Tools</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/diagnosing-wan-failures/">Diagnosing WAN Failures Beyond Physical Link State</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/linux-critical-thermal-shutdowns/">Diagnosing Linux Critical Thermal Shutdowns</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/wireguard-site-to-site-split-tunneling/">WireGuard Site-to-Site Routing with Selective Split Tunneling</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/docker-images-containers-air-gapped-debian/">Building and Transferring Docker Images to Air-Gapped Debian Systems</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/configuring-git-github-ssh-access-safely/">Configuring Git and GitHub SSH Access Safely</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/welcome-to-the-learning-hub/">Welcome to the Learning Hub</a> </li> </ul> </div> </div> <footer class="sticky-bottom mt-5" role="contentinfo"> <div class="container"> © Copyright 2026 Harsh Verma. Built with <a href="https://jekyllrb.com/" target="_blank" rel="external nofollow noopener">Jekyll</a> and <a href="https://github.com/alshedivat/al-folio" target="_blank" rel="external nofollow noopener">al-folio</a>. Hosted on GitHub Pages. </div> </footer> <script>
+  window.alFolio = {
+    compatBootstrap: false
+  };
+</script> <script src="/assets/js/nav-toggle.js?v=141bd79a73ebc0f0b6ea58e440ae79fc"></script> <script defer src="https://cdn.jsdelivr.net/npm/masonry-layout@4.2.2/dist/masonry.pkgd.min.js" integrity="sha256-Nn1q/fx0H7SNLZMQ5Hw5JLaTRZp0yILA/FRexe19VdI=" crossorigin="anonymous"></script> <script defer src="https://cdn.jsdelivr.net/npm/imagesloaded@5.0.0/imagesloaded.pkgd.min.js" integrity="sha256-htrLFfZJ6v5udOG+3kNLINIKh2gvoKqwEhHYfTTMICc=" crossorigin="anonymous"></script> <script defer src="/assets/js/masonry.js?v=e49affc7bd2646f6acdad1dbe02c2359" type="text/javascript"></script> <script defer type="text/javascript" id="MathJax-script" src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-mml-chtml.js" integrity="sha256-MASABpB4tYktI2Oitl4t+78w/lyA+D7b/s9GEP0JOGI=" crossorigin="anonymous"></script> <script src="/assets/al_math/js/mathjax-setup.js"></script> <script src="/assets/js/tooltips-setup.js?v=fe487e99db6c43751e6e7bdb2d6a0611"></script> <script src="/assets/js/no_defer.js?v=53b1b1a645525975c963ce8bf8bfefcf"></script> <script defer src="/assets/js/common.js?v=87baac90f765f2f3362dcf6aaf312a8a"></script> <script defer src="/assets/js/copy_code.js?v=c8a01c11a92744d44b093fc3bda915df" type="text/javascript"></script> <script defer src="/assets/js/jupyter_new_tab.js?v=896d254890d9b47f0281f63bfccf0dee"></script> <script async src="https://d1bxh8uas1mnw7.cloudfront.net/assets/embed.js"></script> <script async src="https://badge.dimensions.ai/badge.js"></script> <script defer src="https://cdn.jsdelivr.net/npm/medium-zoom@1.1.0/dist/medium-zoom.min.js" integrity="sha256-ZgMyDAIYDYGxbcpJcfUnYwNevG/xi9OHKaR/8GK+jWc=" crossorigin="anonymous"></script> <script defer src="/assets/al_img_tools/js/zoom.js"></script> <script defer src="/assets/js/progress-bar.js?v=499464c5c63ced6cf7ad62509f1e2610" type="text/javascript"></script> <script src="https://cdn.jsdelivr.net/npm/vanilla-back-to-top@7.2.1/dist/vanilla-back-to-top.min.js" integrity="sha256-uMJJ3EoTyfRBoTbR+lrfu1uRQ87RZG8AR3cVNuQVeFg=" crossorigin="anonymous"></script> <script>
+    addBackToTop();
+  </script> <script type="module" src="/assets/al_search/js/search/ninja-keys.min.js"></script> <ninja-keys hidebreadcrumbs noautoloadmdicons placeholder="Type to start searching"></ninja-keys> <script src="/assets/al_search/js/search-setup.js"></script> <script>
+// get the ninja-keys element
+const ninja = document.querySelector('ninja-keys');
+
+// add the home and posts menu items
+ninja.data = [{
+    id: "nav-about",
+    title: "About",
+    section: "Navigation",
+    handler: () => {
+      window.location.href = "/";
+    },
+  },{id: "nav-projects",
+          title: "Projects",
+          description: "",
+          section: "Navigation",
+          handler: () => {
+            window.location.href = "/#projects";
+          },
+        },{id: "nav-learning-hub",
+          title: "Learning Hub",
+          description: "Practical notes on servers, networking, Linux, security, and infrastructure automation.",
+          section: "Navigation",
+          handler: () => {
+            window.location.href = "/learn/index.html";
+          },
+        },{id: "nav-certifications",
+          title: "Certifications",
+          description: "Professional certifications across networking, cybersecurity, and infrastructure.",
+          section: "Navigation",
+          handler: () => {
+            window.location.href = "/certs/";
+          },
+        },{id: "post-when-10gbase-t-sfp-modules-destabilize-ethernet-links",
+        
+          title: "When 10GBASE-T SFP+ Modules Destabilize Ethernet Links",
+        
+        description: "How SFP+ module identification, PHY mode selection, and repeated link-state transitions can collapse TCP throughput even when an interface nominally reports 10 Gb/s.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/sfp-plus-link-flaps/";
+          
+        },
+      },{id: "post-ipsec-phase-2-traffic-selectors-and-partial-tunnel-failures",
+        
+          title: "IPsec Phase 2 Traffic Selectors and Partial Tunnel Failures",
+        
+        description: "Why an IPsec tunnel can remain established while one subnet pair fails because routing state and negotiated traffic selectors are separate control-plane objects.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/ipsec-phase2-selectors/";
+          
+        },
+      },{id: "post-when-ups-calibration-state-becomes-a-shutdown-hazard-in-network-ups-tools",
+        
+          title: "When UPS Calibration State Becomes a Shutdown Hazard in Network UPS Tools",
+        
+        description: "A deep analysis of how stale NUT calibration state can turn a brief monitoring outage into an immediate infrastructure shutdown.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/nut-calibration-state-failure/";
+          
+        },
+      },{id: "post-diagnosing-wan-failures-beyond-physical-link-state",
+        
+          title: "Diagnosing WAN Failures Beyond Physical Link State",
+        
+        description: "A layered method for distinguishing Ethernet carrier loss, upstream path degradation, and application-level failure in redundant WAN designs.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/diagnosing-wan-failures/";
+          
+        },
+      },{id: "post-diagnosing-linux-critical-thermal-shutdowns",
+        
+          title: "Diagnosing Linux Critical Thermal Shutdowns",
+        
+        description: "A practical framework for distinguishing genuine silicon overheating from faulty thermal telemetry when Linux initiates a protective shutdown.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/linux-critical-thermal-shutdowns/";
+          
+        },
+      },{id: "post-wireguard-site-to-site-routing-with-selective-split-tunneling",
+        
+          title: "WireGuard Site-to-Site Routing with Selective Split Tunneling",
+        
+        description: "How WireGuard cryptokey routing, policy-based forwarding, firewall rules, NAT, and return paths combine in a selective site-to-site VPN design.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/wireguard-site-to-site-split-tunneling/";
+          
+        },
+      },{id: "post-building-and-transferring-docker-images-to-air-gapped-debian-systems",
+        
+          title: "Building and Transferring Docker Images to Air-Gapped Debian Systems",
+        
+        description: "A practical Debian-focused guide to Docker images, containers, offline Docker installation, and transferring workloads into air-gapped environments.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/docker-images-containers-air-gapped-debian/";
+          
+        },
+      },{id: "post-configuring-git-and-github-ssh-access-safely",
+        
+          title: "Configuring Git and GitHub SSH Access Safely",
+        
+        description: "A practical guide to configuring Git identity, setting up SSH authentication with GitHub, managing remotes, and pushing changes safely.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/configuring-git-github-ssh-access-safely/";
+          
+        },
+      },{id: "post-welcome-to-the-learning-hub",
+        
+          title: "Welcome to the Learning Hub",
+        
+        description: "A home for practical notes on infrastructure, networking, Linux, and automation.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/welcome-to-the-learning-hub/";
+          
+        },
+      },{
+        id: 'social-email',
+        title: 'email',
+        section: 'Socials',
+        handler: () => {
+          window.open("mailto:%68%61%72%73%68%76%65%72%6D%61%63%35@%67%6D%61%69%6C.%63%6F%6D", "_blank");
+        },
+      },{
+        id: 'social-github',
+        title: 'GitHub',
+        section: 'Socials',
+        handler: () => {
+          window.open("https://github.com/harshvermac5", "_blank");
+        },
+      },{
+        id: 'social-linkedin',
+        title: 'LinkedIn',
+        section: 'Socials',
+        handler: () => {
+          window.open("https://www.linkedin.com/in/harshvermac5", "_blank");
+        },
+      },{
+        id: 'social-rss',
+        title: 'RSS Feed',
+        section: 'Socials',
+        handler: () => {
+          window.open("/feed.xml", "_blank");
+        },
+      },{
+      id: 'light-theme',
+      title: 'Change theme to light',
+      description: 'Change the theme of the site to Light',
+      section: 'Theme',
+      handler: () => {
+        setThemeSetting("light");
+      },
+    },
+    {
+      id: 'dark-theme',
+      title: 'Change theme to dark',
+      description: 'Change the theme of the site to Dark',
+      section: 'Theme',
+      handler: () => {
+        setThemeSetting("dark");
+      },
+    },
+    {
+      id: 'system-theme',
+      title: 'Use system default theme',
+      description: 'Change the theme of the site to System Default',
+      section: 'Theme',
+      handler: () => {
+        setThemeSetting("system");
+      },
+    },];
+
+</script> <script src="/assets/al_search/js/shortcut-key.js"></script> </body> </html>

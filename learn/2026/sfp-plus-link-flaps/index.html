@@ -1,0 +1,215 @@
+<!DOCTYPE html> <html lang="en"> <head> <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"> <meta charset="utf-8"> <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no"> <meta http-equiv="X-UA-Compatible" content="IE=edge"> <title> When 10GBASE-T SFP+ Modules Destabilize Ethernet Links | Harsh Verma </title> <meta name="author" content="Harsh Verma"> <meta name="description" content="How SFP+ module identification, PHY mode selection, and repeated link-state transitions can collapse TCP throughput even when an interface nominally reports 10 Gb/s."> <meta name="keywords" content="server engineer, network engineer, linux, data center, infrastructure automation, portfolio"> <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https:; style-src 'self' 'unsafe-inline' https:; img-src 'self' data: https:; font-src 'self' data: https:; media-src 'self' https:; frame-src 'self' https:; connect-src 'self' https:;"> <style>
+  :root {
+    --max-content-width: 1100px;
+  }
+</style> <link rel="stylesheet" href="/assets/css/tailwind.css?v=50c64c15cbb9fd1ce6056fdb8bcb4b62"> <link defer rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.2.0/css/all.min.css" integrity="sha256-MVopmdyC2tYTiJ8wlktf0uh0v4NgT+vNdyVFepi7Q0c=" crossorigin="anonymous"> <link defer rel="stylesheet" href="https://cdn.jsdelivr.net/npm/academicons@1.9.5/css/academicons.min.css" integrity="sha256-SzrCOBJbGVFMahewkgjwnApaV2+av1DwMAA+/QGLyZw=" crossorigin="anonymous"> <link defer rel="stylesheet" href="https://cdn.jsdelivr.net/npm/scholar-icons@1.0.3/css/scholar-icons.css" integrity="sha256-VY3hHVj/hNX3fYG6wtbA6TcKJQl7+FthzGSyIB64klY=" crossorigin="anonymous"> <link defer rel="stylesheet" type="text/css" href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700|Roboto+Slab:100,300,400,500,700|Material+Icons&amp;display=swap"> <link defer rel="stylesheet" href="/assets/css/jekyll-pygments-themes-github.css?v=591dab5a4e56573bf4ef7fd332894c99" media="" id="highlight_theme_light"> <link rel="shortcut icon" href="data:image/svg+xml,&lt;svg%20xmlns=%22http://www.w3.org/2000/svg%22%20viewBox=%220%200%20100%20100%22&gt;&lt;text%20y=%22.9em%22%20font-size=%2290%22&gt;%F0%9F%96%A5%EF%B8%8F&lt;/text&gt;&lt;/svg&gt;"> <link rel="stylesheet" href="/assets/css/main.css?v=3116ba77db9ee1581d05bb3e86fbf7f1"> <link rel="canonical" href="https://harshvermac5.github.io/learn/2026/sfp-plus-link-flaps/"> <script src="/assets/js/theme.js?v=5286c3e4c334d0ecb8fc0c40ff4fa7ec"></script> <link defer rel="stylesheet" href="/assets/css/jekyll-pygments-themes-native.css?v=5847e5ed4a4568527aa6cfab446049ca" media="none" id="highlight_theme_dark"> <script>
+    initTheme();
+  </script> </head> <body class="fixed-top-nav sticky-bottom-footer"> <header> <nav id="navbar" class="navbar navbar-light navbar-expand-sm fixed-top" role="navigation"> <div class="container"> <a class="navbar-brand title font-weight-lighter" href="/"> Harsh Verma </a> <button class="navbar-toggler collapsed navbar-toggler-main" type="button" data-nav-toggle="navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation"> <span class="sr-only">Toggle navigation</span> <span class="icon-bar top-bar"></span> <span class="icon-bar middle-bar"></span> <span class="icon-bar bottom-bar"></span> </button> <div class="collapse navbar-collapse navbar-collapse-main" id="navbarNav"> <ul class="navbar-nav navbar-menu-list flex-nowrap"> <li class="nav-item "> <a class="nav-link" href="/">About </a> </li> <li class="nav-item "> <a class="nav-link" href="/#projects">Projects </a> </li> <li class="nav-item active"> <a class="nav-link" href="/learn/index.html">Learning Hub </a> </li> <li class="nav-item "> <a class="nav-link" href="/certs/">Certifications </a> </li> <li class="nav-item"> <button id="search-toggle" type="button" title="Search" aria-label="Open search"> <span class="nav-link">ctrl k <i class="fa-solid fa-magnifying-glass"></i></span> </button> </li> <li class="toggle-container"> <button id="light-toggle" type="button" title="Change theme" aria-label="Change color theme"> <i class="fa-half-sun-moon" id="light-toggle-system"></i> <i class="fa-solid fa-moon" id="light-toggle-dark"></i> <i class="fa-solid fa-sun" id="light-toggle-light"></i> </button> </li> </ul> </div> </div> </nav> <progress id="progress" value="0"> <div class="progress-container"> <span class="progress-bar"></span> </div> </progress> </header> <div class="container mt-5" role="main"> <div class="post"> <header class="post-header"> <h1 class="post-title">When 10GBASE-T SFP+ Modules Destabilize Ethernet Links</h1> <p class="post-meta"> Created on September 03, 2026 </p> <p class="post-tags"> <i class="fa-solid fa-calendar fa-sm"></i> 2026   ·   <i class="fa-solid fa-hashtag fa-sm"></i> ethernet   <i class="fa-solid fa-hashtag fa-sm"></i> sfp-plus   <i class="fa-solid fa-hashtag fa-sm"></i> tcp   <i class="fa-solid fa-hashtag fa-sm"></i> linux   <i class="fa-solid fa-hashtag fa-sm"></i> troubleshooting   ·   <i class="fa-solid fa-tag fa-sm"></i> Networking </p> </header> <article class="post-content"> <div id="markdown-content"> <h2 id="problem-statement-or-learning-objective">Problem Statement or Learning Objective</h2> <p>A high-speed Ethernet interface can report a nominal <strong>10 Gb/s</strong> capability and still deliver unstable or asymmetric throughput when the pluggable module and the host disagree about the physical medium behind that interface. A particularly subtle case occurs when an <strong>active 10GBASE-T media-converter module</strong> is represented in its EEPROM as if it were a passive copper assembly. The host may then select link-management behavior intended for direct-attach copper rather than a module containing an internal BASE-T PHY.</p> <p>The core lesson is that <strong>link speed is not equivalent to link stability</strong>. A port that repeatedly transitions between link modes can pass enough traffic to look functional while continuously destroying transport-layer efficiency. The result may appear as unexplained throughput asymmetry, packet loss, retransmissions, or speed-test variability rather than an obvious hard link failure.</p> <h2 id="co-technical-subject">Co-Technical Subject</h2> <p><strong>Ethernet PHY and pluggable-transceiver interoperability</strong>, with emphasis on SFP+ management EEPROM semantics, 10GBASE-T media conversion, link-state machines, Linux interface counters, and TCP congestion behavior under intermittent Layer 1 loss.</p> <h2 id="theoretical-foundation">Theoretical Foundation</h2> <p><strong>10GBASE-T</strong> was standardized by <strong>IEEE 802.3an-2006</strong> for 10 Gb/s Ethernet over balanced twisted-pair copper. Its purpose was to provide a standards-based copper PHY using the existing Ethernet MAC while adding the PCS, PMA, PMD, and management functions required for 10 Gb/s operation. IEEE describes the amendment as specifying a PHY for 10 Gb/s operation over structured copper cabling up to 100 meters.</p> <p><a href="https://ieeexplore.ieee.org/abstract/document/1700008" rel="external nofollow noopener" target="_blank">“10GBASE-T specifies a LAN interconnect for up to 100 m of balanced twisted-pair structured cabling systems.”</a></p> <p>An SFP+ slot is different. The host-side cage exposes a high-speed serial electrical interface plus low-speed management signals. The module may be optical, passive copper, active cable, or a small media converter containing its own PHY. The host learns what has been inserted by reading the module’s management memory.</p> <p>The current <strong>SNIA SFF-8472 Rev 12.5a, 2026</strong> specification defines the management interface and memory map for SFP+ modules. Capability identifiers used in that memory map are maintained in <strong>SFF-8024 Rev 4.14, 2026</strong>, including connector and media-interface codes. SNIA explicitly separates identifiers such as <strong>Copper pigtail</strong> and <strong>RJ45</strong>, because the physical behavior expected from a passive cable is not the same as the behavior of an RJ45 BASE-T transceiver.</p> <p><a href="https://members.snia.org/document/dl/25916" rel="external nofollow noopener" target="_blank">“This specification defines an enhanced digital interface … for monitoring and control of SFP+ optical transceivers and similar products.”</a></p> <h2 id="mechanism-breakdown">Mechanism Breakdown</h2> <p>At insertion time, an SFP+ host typically reads identification fields over the module’s low-speed management interface. Those fields describe characteristics such as identifier, connector, signaling rate, compliance codes, vendor data, and optional diagnostic capabilities.</p> <p>A passive direct-attach cable is essentially a controlled-impedance copper assembly between serial interfaces, while an RJ45 BASE-T module contains active PHY logic. Hosts may apply different initialization, equalization, and rate-selection behavior based on advertised module capabilities.</p> <p>If an active BASE-T converter advertises itself with metadata associated with <strong>passive copper</strong>, the host can make the wrong media assumption. The standard does not mandate a particular vendor’s link-manager implementation, but a practical host may select a cable-oriented state machine based on EEPROM contents. The failure sequence can then look like this:</p> <ul> <li>The host reads the module EEPROM and classifies the module as a copper cable or direct-attach medium.</li> <li>The link manager attempts a high-speed serial mode appropriate to that classification.</li> <li>The active module’s internal PHY and the host fail to settle on a stable operating state.</li> <li>The driver reports a transition such as <strong>10G to 1G</strong>, followed by <strong>link down</strong> and another initialization cycle.</li> <li>The interface briefly recovers and traffic resumes.</li> <li>The process repeats, creating a port that is administratively up but operationally unstable.</li> </ul> <p>This is why a GUI showing <strong>10 Gb/s Full Duplex</strong> is insufficient evidence. The relevant metric is whether the interface remains in that state without repeated carrier loss, PHY resets, or mode changes.</p> <h2 id="industry-standards-reference">Industry Standards Reference</h2> <p>The most relevant standards and specifications are:</p> <ul> <li> <strong>IEEE 802.3an-2006</strong>: defined 10GBASE-T and its PHY/management parameters for 10 Gb/s over balanced twisted pair.</li> <li> <strong>IEEE 802.3bz-2016</strong>: defined 2.5GBASE-T and 5GBASE-T over balanced twisted pair.</li> <li> <strong>SFF-8472 Rev 12.5a, 2026</strong>: defines the SFP+ management memory map and diagnostic/control interface.</li> <li> <strong>SFF-8024 Rev 4.14, 2026</strong>: defines shared module-management reference codes used to advertise connector and media capabilities.</li> <li> <strong>SFF-8419 Rev 2.0a, 2026</strong>: defines SFP+ power and low-speed electrical behavior; it supersedes portions of earlier SFF-8431 management definitions.</li> <li> <strong>RFC 9293, 2022</strong>: current TCP protocol specification, including retransmission requirements when segments are lost.</li> <li> <strong>RFC 5681, 2009</strong>: defines TCP slow start, congestion avoidance, fast retransmit, and fast recovery.</li> <li> <strong>RFC 6298, 2011</strong>: defines computation and exponential backoff of TCP’s retransmission timeout.</li> </ul> <p>SFF-8024 distinguishes <strong>Copper pigtail</strong> from <strong>RJ45</strong> and separates passive copper from active cable and BASE-T applications.</p> <p><a href="https://members.snia.org/document/dl/26423" rel="external nofollow noopener" target="_blank">“The media side connector codes … are used by SFF-8436, SFF-8472, SFF-8636 and CMIS management interfaces.”</a></p> <h2 id="practical-examples-and-evidence">Practical Examples and Evidence</h2> <p>On Linux, start by separating <strong>module identity</strong>, <strong>link state</strong>, and <strong>packet statistics</strong>. Do not infer all three from a single speed-test result.</p> <div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>ethtool eth0
+ethtool <span class="nt">-m</span> eth0
+ethtool <span class="nt">-S</span> eth0
+ip <span class="nt">-s</span> <span class="nt">-s</span> <span class="nb">link </span>show dev eth0
+journalctl <span class="nt">-k</span> | <span class="nb">grep</span> <span class="nt">-Ei</span> <span class="s1">'eth0|link down|link up|phy|sfp'</span>
+</code></pre></div></div> <p>A problematic module dump might conceptually resemble:</p> <div class="language-text highlighter-rouge"><div class="highlight"><pre class="highlight"><code>Identifier              : SFP/SFP+
+Connector               : Copper pigtail
+Transceiver compliance  : Passive copper cable
+Nominal bitrate         : 10300 MBd
+</code></pre></div></div> <p>That metadata should be questioned if the physical device is actually an <strong>RJ45 10GBASE-T converter containing an active PHY</strong>.</p> <p>A corresponding kernel log may show repeated state churn:</p> <div class="language-text highlighter-rouge"><div class="highlight"><pre class="highlight"><code>eth0: link mode changed: 10G -&gt; 1G
+eth0: link down
+eth0: link mode changed: 1G -&gt; 10G
+eth0: link up
+eth0: link down
+</code></pre></div></div> <p>The diagnostic signature is sustained correlation between <strong>mode changes</strong>, <strong>carrier transitions</strong>, and degraded throughput.</p> <p>Linux statistics provide another useful distinction. The kernel documents <code class="language-plaintext highlighter-rouge">rx_missed_errors</code> as packets missed because the device lacked buffer space, commonly indicating that the host could not keep up with the receive rate. That is materially different from <code class="language-plaintext highlighter-rouge">rx_crc_errors</code>, which indicates frames arriving with invalid FCS.</p> <p><a href="https://www.kernel.org/doc/html/v5.12/networking/statistics.html" rel="external nofollow noopener" target="_blank">“Counts number of packets dropped by the device due to lack of buffer space.”</a></p> <p>A rising <code class="language-plaintext highlighter-rouge">rx_missed_errors</code> counter should trigger investigation of receive rings, IRQ distribution, CPU pressure, and driver behavior rather than being treated automatically as a cabling fault.</p> <h2 id="why-link-flaps-destroy-tcp-throughput">Why Link Flaps Destroy TCP Throughput</h2> <p>TCP treats loss as a signal that transmission conditions have degraded. <strong>RFC 5681</strong> requires a sender to control outstanding data using the congestion window, and loss can reduce the amount of data permitted in flight. Repeated carrier interruptions can therefore prevent a high-bandwidth flow from ever sustaining the congestion window needed to fill a multi-gigabit path.</p> <p><a href="https://www.rfc-editor.org/info/rfc5681/" rel="external nofollow noopener" target="_blank">“The algorithms specified in this document work in terms of using loss as the signal of congestion.”</a></p> <p>When a link interruption is long enough to trigger a retransmission timeout, <strong>RFC 6298</strong> requires exponential RTO backoff. Even sub-second instability can cause bursts of loss, duplicate acknowledgments, retransmissions, and repeated congestion-window reduction. The physical link may recover quickly, but the transport layer can remain throughput-limited well after carrier returns.</p> <p>Apparent <strong>directional asymmetry</strong> can still occur because queueing, pause behavior, receive-side drops, and the loss point relative to the TCP sender affect each direction differently.</p> <h2 id="key-technical-insights">Key Technical Insights</h2> <ul> <li> <strong>Advertised link speed is a state, not a quality metric.</strong> Always correlate speed with carrier-change counters and logs.</li> <li> <strong>Pluggable-module EEPROM data is operational input.</strong> Incorrect connector or media capability fields can influence host initialization and interoperability.</li> <li> <strong>An RJ45 SFP+ module is not equivalent to a passive DAC.</strong> A BASE-T module contains active PHY/media-conversion logic and must be treated accordingly.</li> <li> <strong>Transport symptoms can originate at Layer 1.</strong> TCP retransmission and congestion control can turn brief physical instability into severe throughput loss.</li> <li> <strong>Counter semantics matter.</strong> CRC, frame, FIFO, missed, drop, and pause counters represent different failure domains and should not be collapsed into “port errors.”</li> <li> <strong>A/B tests require one variable at a time.</strong> Changing port type, module type, inspection features, or client path simultaneously makes throughput comparisons ambiguous.</li> </ul> <h2 id="prevention-strategies-and-takeaways">Prevention Strategies and Takeaways</h2> <ul> <li>Validate that transceiver EEPROM fields match the module’s actual electrical and media behavior.</li> <li>Prefer modules explicitly qualified for the host platform when active copper conversion is required.</li> <li>Where possible, use native optical SFP+ links instead of inserting an additional BASE-T PHY into the pluggable path.</li> <li>Record link-state transitions over time, not just the negotiated speed at one instant.</li> <li>Correlate <code class="language-plaintext highlighter-rouge">ethtool -m</code>, <code class="language-plaintext highlighter-rouge">ethtool -S</code>, kernel logs, interface counters, and packet loss before concluding that a throughput ceiling is caused by routing or security processing.</li> <li>Treat <code class="language-plaintext highlighter-rouge">rx_missed_errors</code> as a host receive-capacity signal until evidence shows otherwise; check queues, buffers, interrupts, and CPU load separately from physical-layer errors.</li> <li>After replacing a suspect module, confirm remediation by verifying that link-mode changes and carrier drops stop before rerunning throughput tests.</li> </ul> <p>The general troubleshooting principle is simple: <strong>prove physical stability before analyzing higher-layer performance</strong>. Multi-gigabit Ethernet can remain deceptively usable while its PHY is repeatedly reinitializing. Once link identity, media type, and carrier stability are verified, throughput testing becomes meaningful rather than merely symptomatic.</p> </div> </article> <br> <hr> <br> <h2 class="text-3xl font-semibold mb-4 mt-12">Enjoy Reading This Article?</h2> <p class="mb-2">Here are some more articles you might like to read next:</p> <ul class="list-disc pl-7 my-3 space-y-2 marker:text-[var(--global-theme-color)]"> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/ipsec-phase2-selectors/">IPsec Phase 2 Traffic Selectors and Partial Tunnel Failures</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/nut-calibration-state-failure/">When UPS Calibration State Becomes a Shutdown Hazard in Network UPS Tools</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/diagnosing-wan-failures/">Diagnosing WAN Failures Beyond Physical Link State</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/linux-critical-thermal-shutdowns/">Diagnosing Linux Critical Thermal Shutdowns</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/wireguard-site-to-site-split-tunneling/">WireGuard Site-to-Site Routing with Selective Split Tunneling</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/docker-images-containers-air-gapped-debian/">Building and Transferring Docker Images to Air-Gapped Debian Systems</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/configuring-git-github-ssh-access-safely/">Configuring Git and GitHub SSH Access Safely</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/welcome-to-the-learning-hub/">Welcome to the Learning Hub</a> </li> </ul> </div> </div> <footer class="sticky-bottom mt-5" role="contentinfo"> <div class="container"> © Copyright 2026 Harsh Verma. Built with <a href="https://jekyllrb.com/" target="_blank" rel="external nofollow noopener">Jekyll</a> and <a href="https://github.com/alshedivat/al-folio" target="_blank" rel="external nofollow noopener">al-folio</a>. Hosted on GitHub Pages. </div> </footer> <script>
+  window.alFolio = {
+    compatBootstrap: false
+  };
+</script> <script src="/assets/js/nav-toggle.js?v=141bd79a73ebc0f0b6ea58e440ae79fc"></script> <script defer src="https://cdn.jsdelivr.net/npm/masonry-layout@4.2.2/dist/masonry.pkgd.min.js" integrity="sha256-Nn1q/fx0H7SNLZMQ5Hw5JLaTRZp0yILA/FRexe19VdI=" crossorigin="anonymous"></script> <script defer src="https://cdn.jsdelivr.net/npm/imagesloaded@5.0.0/imagesloaded.pkgd.min.js" integrity="sha256-htrLFfZJ6v5udOG+3kNLINIKh2gvoKqwEhHYfTTMICc=" crossorigin="anonymous"></script> <script defer src="/assets/js/masonry.js?v=e49affc7bd2646f6acdad1dbe02c2359" type="text/javascript"></script> <script defer type="text/javascript" id="MathJax-script" src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-mml-chtml.js" integrity="sha256-MASABpB4tYktI2Oitl4t+78w/lyA+D7b/s9GEP0JOGI=" crossorigin="anonymous"></script> <script src="/assets/al_math/js/mathjax-setup.js"></script> <script src="/assets/js/tooltips-setup.js?v=fe487e99db6c43751e6e7bdb2d6a0611"></script> <script src="/assets/js/no_defer.js?v=53b1b1a645525975c963ce8bf8bfefcf"></script> <script defer src="/assets/js/common.js?v=87baac90f765f2f3362dcf6aaf312a8a"></script> <script defer src="/assets/js/copy_code.js?v=c8a01c11a92744d44b093fc3bda915df" type="text/javascript"></script> <script defer src="/assets/js/jupyter_new_tab.js?v=896d254890d9b47f0281f63bfccf0dee"></script> <script async src="https://d1bxh8uas1mnw7.cloudfront.net/assets/embed.js"></script> <script async src="https://badge.dimensions.ai/badge.js"></script> <script defer src="https://cdn.jsdelivr.net/npm/medium-zoom@1.1.0/dist/medium-zoom.min.js" integrity="sha256-ZgMyDAIYDYGxbcpJcfUnYwNevG/xi9OHKaR/8GK+jWc=" crossorigin="anonymous"></script> <script defer src="/assets/al_img_tools/js/zoom.js"></script> <script defer src="/assets/js/progress-bar.js?v=499464c5c63ced6cf7ad62509f1e2610" type="text/javascript"></script> <script src="https://cdn.jsdelivr.net/npm/vanilla-back-to-top@7.2.1/dist/vanilla-back-to-top.min.js" integrity="sha256-uMJJ3EoTyfRBoTbR+lrfu1uRQ87RZG8AR3cVNuQVeFg=" crossorigin="anonymous"></script> <script>
+    addBackToTop();
+  </script> <script type="module" src="/assets/al_search/js/search/ninja-keys.min.js"></script> <ninja-keys hidebreadcrumbs noautoloadmdicons placeholder="Type to start searching"></ninja-keys> <script src="/assets/al_search/js/search-setup.js"></script> <script>
+// get the ninja-keys element
+const ninja = document.querySelector('ninja-keys');
+
+// add the home and posts menu items
+ninja.data = [{
+    id: "nav-about",
+    title: "About",
+    section: "Navigation",
+    handler: () => {
+      window.location.href = "/";
+    },
+  },{id: "nav-projects",
+          title: "Projects",
+          description: "",
+          section: "Navigation",
+          handler: () => {
+            window.location.href = "/#projects";
+          },
+        },{id: "nav-learning-hub",
+          title: "Learning Hub",
+          description: "Practical notes on servers, networking, Linux, security, and infrastructure automation.",
+          section: "Navigation",
+          handler: () => {
+            window.location.href = "/learn/index.html";
+          },
+        },{id: "nav-certifications",
+          title: "Certifications",
+          description: "Professional certifications across networking, cybersecurity, and infrastructure.",
+          section: "Navigation",
+          handler: () => {
+            window.location.href = "/certs/";
+          },
+        },{id: "post-when-10gbase-t-sfp-modules-destabilize-ethernet-links",
+        
+          title: "When 10GBASE-T SFP+ Modules Destabilize Ethernet Links",
+        
+        description: "How SFP+ module identification, PHY mode selection, and repeated link-state transitions can collapse TCP throughput even when an interface nominally reports 10 Gb/s.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/sfp-plus-link-flaps/";
+          
+        },
+      },{id: "post-ipsec-phase-2-traffic-selectors-and-partial-tunnel-failures",
+        
+          title: "IPsec Phase 2 Traffic Selectors and Partial Tunnel Failures",
+        
+        description: "Why an IPsec tunnel can remain established while one subnet pair fails because routing state and negotiated traffic selectors are separate control-plane objects.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/ipsec-phase2-selectors/";
+          
+        },
+      },{id: "post-when-ups-calibration-state-becomes-a-shutdown-hazard-in-network-ups-tools",
+        
+          title: "When UPS Calibration State Becomes a Shutdown Hazard in Network UPS Tools",
+        
+        description: "A deep analysis of how stale NUT calibration state can turn a brief monitoring outage into an immediate infrastructure shutdown.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/nut-calibration-state-failure/";
+          
+        },
+      },{id: "post-diagnosing-wan-failures-beyond-physical-link-state",
+        
+          title: "Diagnosing WAN Failures Beyond Physical Link State",
+        
+        description: "A layered method for distinguishing Ethernet carrier loss, upstream path degradation, and application-level failure in redundant WAN designs.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/diagnosing-wan-failures/";
+          
+        },
+      },{id: "post-diagnosing-linux-critical-thermal-shutdowns",
+        
+          title: "Diagnosing Linux Critical Thermal Shutdowns",
+        
+        description: "A practical framework for distinguishing genuine silicon overheating from faulty thermal telemetry when Linux initiates a protective shutdown.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/linux-critical-thermal-shutdowns/";
+          
+        },
+      },{id: "post-wireguard-site-to-site-routing-with-selective-split-tunneling",
+        
+          title: "WireGuard Site-to-Site Routing with Selective Split Tunneling",
+        
+        description: "How WireGuard cryptokey routing, policy-based forwarding, firewall rules, NAT, and return paths combine in a selective site-to-site VPN design.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/wireguard-site-to-site-split-tunneling/";
+          
+        },
+      },{id: "post-building-and-transferring-docker-images-to-air-gapped-debian-systems",
+        
+          title: "Building and Transferring Docker Images to Air-Gapped Debian Systems",
+        
+        description: "A practical Debian-focused guide to Docker images, containers, offline Docker installation, and transferring workloads into air-gapped environments.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/docker-images-containers-air-gapped-debian/";
+          
+        },
+      },{id: "post-configuring-git-and-github-ssh-access-safely",
+        
+          title: "Configuring Git and GitHub SSH Access Safely",
+        
+        description: "A practical guide to configuring Git identity, setting up SSH authentication with GitHub, managing remotes, and pushing changes safely.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/configuring-git-github-ssh-access-safely/";
+          
+        },
+      },{id: "post-welcome-to-the-learning-hub",
+        
+          title: "Welcome to the Learning Hub",
+        
+        description: "A home for practical notes on infrastructure, networking, Linux, and automation.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/welcome-to-the-learning-hub/";
+          
+        },
+      },{
+        id: 'social-email',
+        title: 'email',
+        section: 'Socials',
+        handler: () => {
+          window.open("mailto:%68%61%72%73%68%76%65%72%6D%61%63%35@%67%6D%61%69%6C.%63%6F%6D", "_blank");
+        },
+      },{
+        id: 'social-github',
+        title: 'GitHub',
+        section: 'Socials',
+        handler: () => {
+          window.open("https://github.com/harshvermac5", "_blank");
+        },
+      },{
+        id: 'social-linkedin',
+        title: 'LinkedIn',
+        section: 'Socials',
+        handler: () => {
+          window.open("https://www.linkedin.com/in/harshvermac5", "_blank");
+        },
+      },{
+        id: 'social-rss',
+        title: 'RSS Feed',
+        section: 'Socials',
+        handler: () => {
+          window.open("/feed.xml", "_blank");
+        },
+      },{
+      id: 'light-theme',
+      title: 'Change theme to light',
+      description: 'Change the theme of the site to Light',
+      section: 'Theme',
+      handler: () => {
+        setThemeSetting("light");
+      },
+    },
+    {
+      id: 'dark-theme',
+      title: 'Change theme to dark',
+      description: 'Change the theme of the site to Dark',
+      section: 'Theme',
+      handler: () => {
+        setThemeSetting("dark");
+      },
+    },
+    {
+      id: 'system-theme',
+      title: 'Use system default theme',
+      description: 'Change the theme of the site to System Default',
+      section: 'Theme',
+      handler: () => {
+        setThemeSetting("system");
+      },
+    },];
+
+</script> <script src="/assets/al_search/js/shortcut-key.js"></script> </body> </html>
