@@ -1,0 +1,257 @@
+<!DOCTYPE html> <html lang="en"> <head> <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"> <meta charset="utf-8"> <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no"> <meta http-equiv="X-UA-Compatible" content="IE=edge"> <title> Atomic Configuration Validation and Control-Plane Drift | Harsh Verma </title> <meta name="author" content="Harsh Verma"> <meta name="description" content="How schema validation, transactional configuration pushes, and datastore drift can cause a single invalid field to block an entire network-device configuration."> <meta name="keywords" content="server engineer, network engineer, linux, data center, infrastructure automation, portfolio"> <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https:; style-src 'self' 'unsafe-inline' https:; img-src 'self' data: https:; font-src 'self' data: https:; media-src 'self' https:; frame-src 'self' https:; connect-src 'self' https:;"> <style>
+  :root {
+    --max-content-width: 1100px;
+  }
+</style> <link rel="stylesheet" href="/assets/css/tailwind.css?v=50c64c15cbb9fd1ce6056fdb8bcb4b62"> <link defer rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.2.0/css/all.min.css" integrity="sha256-MVopmdyC2tYTiJ8wlktf0uh0v4NgT+vNdyVFepi7Q0c=" crossorigin="anonymous"> <link defer rel="stylesheet" href="https://cdn.jsdelivr.net/npm/academicons@1.9.5/css/academicons.min.css" integrity="sha256-SzrCOBJbGVFMahewkgjwnApaV2+av1DwMAA+/QGLyZw=" crossorigin="anonymous"> <link defer rel="stylesheet" href="https://cdn.jsdelivr.net/npm/scholar-icons@1.0.3/css/scholar-icons.css" integrity="sha256-VY3hHVj/hNX3fYG6wtbA6TcKJQl7+FthzGSyIB64klY=" crossorigin="anonymous"> <link defer rel="stylesheet" type="text/css" href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700|Roboto+Slab:100,300,400,500,700|Material+Icons&amp;display=swap"> <link defer rel="stylesheet" href="/assets/css/jekyll-pygments-themes-github.css?v=591dab5a4e56573bf4ef7fd332894c99" media="" id="highlight_theme_light"> <link rel="shortcut icon" href="data:image/svg+xml,&lt;svg%20xmlns=%22http://www.w3.org/2000/svg%22%20viewBox=%220%200%20100%20100%22&gt;&lt;text%20y=%22.9em%22%20font-size=%2290%22&gt;%F0%9F%96%A5%EF%B8%8F&lt;/text&gt;&lt;/svg&gt;"> <link rel="stylesheet" href="/assets/css/main.css?v=3116ba77db9ee1581d05bb3e86fbf7f1"> <link rel="canonical" href="https://harshvermac5.github.io/learn/2026/atomic-config-validation/"> <script src="/assets/js/theme.js?v=5286c3e4c334d0ecb8fc0c40ff4fa7ec"></script> <link defer rel="stylesheet" href="/assets/css/jekyll-pygments-themes-native.css?v=5847e5ed4a4568527aa6cfab446049ca" media="none" id="highlight_theme_dark"> <script>
+    initTheme();
+  </script> </head> <body class="fixed-top-nav sticky-bottom-footer"> <header> <nav id="navbar" class="navbar navbar-light navbar-expand-sm fixed-top" role="navigation"> <div class="container"> <a class="navbar-brand title font-weight-lighter" href="/"> Harsh Verma </a> <button class="navbar-toggler collapsed navbar-toggler-main" type="button" data-nav-toggle="navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation"> <span class="sr-only">Toggle navigation</span> <span class="icon-bar top-bar"></span> <span class="icon-bar middle-bar"></span> <span class="icon-bar bottom-bar"></span> </button> <div class="collapse navbar-collapse navbar-collapse-main" id="navbarNav"> <ul class="navbar-nav navbar-menu-list flex-nowrap"> <li class="nav-item "> <a class="nav-link" href="/">About </a> </li> <li class="nav-item "> <a class="nav-link" href="/#projects">Projects </a> </li> <li class="nav-item active"> <a class="nav-link" href="/learn/index.html">Learning Hub </a> </li> <li class="nav-item "> <a class="nav-link" href="/certs/">Certifications </a> </li> <li class="nav-item"> <button id="search-toggle" type="button" title="Search" aria-label="Open search"> <span class="nav-link">ctrl k <i class="fa-solid fa-magnifying-glass"></i></span> </button> </li> <li class="toggle-container"> <button id="light-toggle" type="button" title="Change theme" aria-label="Change color theme"> <i class="fa-half-sun-moon" id="light-toggle-system"></i> <i class="fa-solid fa-moon" id="light-toggle-dark"></i> <i class="fa-solid fa-sun" id="light-toggle-light"></i> </button> </li> </ul> </div> </div> </nav> <progress id="progress" value="0"> <div class="progress-container"> <span class="progress-bar"></span> </div> </progress> </header> <div class="container mt-5" role="main"> <div class="post"> <header class="post-header"> <h1 class="post-title">Atomic Configuration Validation and Control-Plane Drift</h1> <p class="post-meta"> Created on September 03, 2026 </p> <p class="post-tags"> <i class="fa-solid fa-calendar fa-sm"></i> 2026   ·   <i class="fa-solid fa-hashtag fa-sm"></i> configuration-management   <i class="fa-solid fa-hashtag fa-sm"></i> schema-validation   <i class="fa-solid fa-hashtag fa-sm"></i> network-automation   ·   <i class="fa-solid fa-tag fa-sm"></i> Infrastructure </p> </header> <article class="post-content"> <div id="markdown-content"> <h2 id="problem-statement-or-learning-objective">Problem Statement or Learning Objective</h2> <p>Modern network controllers increasingly manage devices by generating a complete structured configuration document and pushing it through an API to a local configuration agent. The important architectural consequence is that <strong>one invalid field can invalidate the entire transaction</strong>. A malformed username, stale object type, or incompatible schema revision may therefore prevent unrelated firewall, DHCP, NAT, VPN, or routing changes from reaching the device.</p> <p>This article examines the engineering principles behind that behavior: <strong>schema validation before commit</strong>, <strong>atomic configuration application</strong>, <strong>configuration migration</strong>, and <strong>drift between intended and operational state</strong>. The central troubleshooting skill is learning to distinguish the error that sends a configuration through a migration path from the error that ultimately prevents the transaction from committing.</p> <h2 id="co-technical-subject">Co-Technical Subject</h2> <p><strong>Model-driven network configuration, transactional state management, and schema migration.</strong></p> <h2 id="theoretical-foundation">Theoretical Foundation</h2> <p>The standards-based analogue for transactional network configuration is <strong>NETCONF</strong>, defined by <strong>RFC 6241 (2011)</strong>. NETCONF separates candidate configuration from running configuration and defines commit semantics. Critically, RFC 6241 states that if a device cannot commit all candidate changes, the <a href="https://www.rfc-editor.org/rfc/rfc6241.html#section-8.3.4.1" rel="external nofollow noopener" target="_blank">“running configuration MUST remain unchanged”</a>. That is the core atomicity principle: partial success is often more dangerous than complete rejection because it creates an indeterminate configuration state.</p> <p><strong>YANG 1.1</strong>, defined by <strong>RFC 7950 (2016)</strong>, formalizes schema constraints for network configuration. Its constraint model requires that <a href="https://www.rfc-editor.org/rfc/rfc7950.html#section-8.1" rel="external nofollow noopener" target="_blank">“the constraint is defined on configuration data, it MUST be true”</a> for a valid configuration tree. A value can therefore be syntactically valid JSON yet semantically invalid according to the configuration model.</p> <p><strong>RESTCONF</strong>, defined by <strong>RFC 8040 (2017)</strong>, maps model-driven configuration onto HTTP. Its examples explicitly show an invalid modeled value returning <strong>HTTP 400 Bad Request</strong> with an <strong>invalid-value</strong> error. HTTP itself defines <strong>400 Bad Request</strong> in <strong>RFC 9110 (2022)</strong> as a condition where the server <a href="https://www.rfc-editor.org/rfc/rfc9110.html#section-15.5.1" rel="external nofollow noopener" target="_blank">“cannot or will not process the request”</a> because it perceives a client-side error.</p> <p>For JSON-oriented implementations, <strong>RFC 8259 (2017)</strong> defines JSON syntax, while <strong>JSON Schema Draft 2020-12 (2022)</strong> provides structural and value validation. JSON Schema’s <code class="language-plaintext highlighter-rouge">pattern</code>, <code class="language-plaintext highlighter-rouge">type</code>, <code class="language-plaintext highlighter-rouge">required</code>, and related keywords allow a receiver to reject fields that are legal JSON strings but illegal application values. The specification describes validation as constraints that <a href="https://json-schema.org/draft/2020-12/json-schema-validation" rel="external nofollow noopener" target="_blank">“impose requirements for successful validation”</a>.</p> <p>Finally, <strong>RFC 8342 (2018)</strong>, the Network Management Datastore Architecture, distinguishes intended configuration from operational state. It defines intended configuration as what the system <a href="https://www.rfc-editor.org/rfc/rfc8342.html#section-5.1.4" rel="external nofollow noopener" target="_blank">“attempts to apply”</a>. That distinction is essential when a controller’s database successfully stores a change but the device rejects the corresponding configuration transaction.</p> <h2 id="mechanism-breakdown">Mechanism Breakdown</h2> <p>A model-driven controller commonly follows a pipeline similar to this:</p> <ul> <li>An operator changes an object in the controller’s configuration database.</li> <li>The controller renders the complete <strong>intended configuration</strong> for the device.</li> <li>The document is serialized, commonly as JSON or XML.</li> <li>The device-side configuration service receives the document through an API such as HTTP <code class="language-plaintext highlighter-rouge">PUT</code>, RESTCONF, NETCONF, or an internal RPC.</li> <li>The receiver validates structure, types, value constraints, cross-field dependencies, and schema revision.</li> <li>If the document uses an older schema, a migration layer may transform legacy objects into the current representation.</li> <li>The transformed document is validated again.</li> <li>Only after successful validation does the configuration enter a commit or apply phase.</li> <li>If validation fails before commit, the previous running configuration remains active.</li> </ul> <p>The subtle point is that <strong>migration and validation are separate phases</strong>. A legacy-field error may trigger migration, yet the transformed document can still fail on an independent value constraint. The first error explains why migration executed; the last validation error before commit is the <strong>terminal blocker</strong>.</p> <h2 id="practical-examples-and-evidence">Practical Examples and Evidence</h2> <p>Consider a controller that manages an embedded authentication service. The username is a normal JSON string, but the data model prohibits whitespace at either edge.</p> <div class="language-json highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="p">{</span><span class="w">
+  </span><span class="nl">"$schema"</span><span class="p">:</span><span class="w"> </span><span class="s2">"https://json-schema.org/draft/2020-12/schema"</span><span class="p">,</span><span class="w">
+  </span><span class="nl">"type"</span><span class="p">:</span><span class="w"> </span><span class="s2">"object"</span><span class="p">,</span><span class="w">
+  </span><span class="nl">"properties"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w">
+    </span><span class="nl">"username"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w">
+      </span><span class="nl">"type"</span><span class="p">:</span><span class="w"> </span><span class="s2">"string"</span><span class="p">,</span><span class="w">
+      </span><span class="nl">"minLength"</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w">
+      </span><span class="nl">"pattern"</span><span class="p">:</span><span class="w"> </span><span class="s2">"^</span><span class="se">\\</span><span class="s2">S(?:.*</span><span class="se">\\</span><span class="s2">S)?$"</span><span class="w">
+    </span><span class="p">}</span><span class="w">
+  </span><span class="p">},</span><span class="w">
+  </span><span class="nl">"required"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">"username"</span><span class="p">]</span><span class="w">
+</span><span class="p">}</span><span class="w">
+</span></code></pre></div></div> <p>The following payload is syntactically valid JSON but fails the application schema because the username ends with a space:</p> <div class="language-json highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="p">{</span><span class="w">
+  </span><span class="nl">"username"</span><span class="p">:</span><span class="w"> </span><span class="s2">"operator "</span><span class="w">
+</span><span class="p">}</span><span class="w">
+</span></code></pre></div></div> <p>A full-document configuration API can consequently reject an otherwise valid configuration bundle:</p> <div class="language-http highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nf">PUT</span> <span class="nn">/api/v1/device/configuration</span> <span class="k">HTTP</span><span class="o">/</span><span class="m">1.1</span>
+<span class="na">Content-Type</span><span class="p">:</span> <span class="s">application/json</span>
+
+<span class="p">{</span><span class="w"> </span><span class="err">...</span><span class="w"> </span><span class="err">complete</span><span class="w"> </span><span class="err">intended</span><span class="w"> </span><span class="err">configuration</span><span class="w"> </span><span class="err">...</span><span class="w"> </span><span class="p">}</span><span class="w">
+
+</span><span class="err">HTTP/</span><span class="mf">1.1</span><span class="w"> </span><span class="mi">400</span><span class="w"> </span><span class="err">Bad</span><span class="w"> </span><span class="err">Request</span><span class="w">
+</span><span class="err">Content-Type:</span><span class="w"> </span><span class="err">application/json</span><span class="w">
+
+</span><span class="p">{</span><span class="w">
+  </span><span class="nl">"error"</span><span class="p">:</span><span class="w"> </span><span class="s2">"schema validation failed"</span><span class="p">,</span><span class="w">
+  </span><span class="nl">"path"</span><span class="p">:</span><span class="w"> </span><span class="s2">".services.authentication.users[3].username"</span><span class="w">
+</span><span class="p">}</span><span class="w">
+</span></code></pre></div></div> <p>If the API implements transactional semantics, none of the document is applied. A firewall rule modified in the same controller session may therefore appear correct in the UI but remain unchanged on the device.</p> <p>A migration-related failure can look different:</p> <div class="language-text highlighter-rouge"><div class="highlight"><pre class="highlight"><code>schema: firewall.rules.log must be an object
+migration: converting configuration schema v1 -&gt; v2
+migration: completed
+validation: services.authentication.users[3].username does not match pattern
+commit: aborted
+</code></pre></div></div> <p>The correct causal chain is <strong>legacy field -&gt; migration path -&gt; successful transformation -&gt; independent username validation failure -&gt; transaction abort</strong>. Treating the legacy firewall field as the terminal cause would send troubleshooting in the wrong direction.</p> <p>On Linux-based infrastructure, a practical diagnostic workflow is to correlate API responses, validation paths, and commit markers:</p> <div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>journalctl <span class="nt">-u</span> config-agent <span class="nt">--since</span> <span class="s2">"24 hours ago"</span> | <span class="nb">grep</span> <span class="nt">-E</span> <span class="s1">'400|validation|migration|commit'</span>
+</code></pre></div></div> <p>For JSON logs, preserve the exact offending path and value rather than relying only on a high-level alert:</p> <div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>jq <span class="s1">'select(.status == 400) | {time, path, message}'</span> config-agent.jsonl
+</code></pre></div></div> <p>The strongest evidence of resolution is not merely disappearance of a banner. It is a subsequent configuration transaction that passes validation, commits successfully, and produces operational state matching intended state.</p> <h2 id="industry-standards-reference">Industry Standards Reference</h2> <p>The architecture maps cleanly to several authoritative specifications:</p> <ul> <li> <strong>RFC 6241, NETCONF Protocol, 2011</strong>: candidate configuration, commit semantics, validation, locking, and rollback-on-error.</li> <li> <strong>RFC 7950, YANG 1.1, 2016</strong>: model constraints, types, patterns, and validity requirements for configuration data trees.</li> <li> <strong>RFC 8040, RESTCONF Protocol, 2017</strong>: HTTP-based access to YANG-modeled configuration and modeled error responses.</li> <li> <strong>RFC 8259, JSON, 2017</strong>: syntax and interoperability rules for JSON serialization.</li> <li> <strong>RFC 8342, NMDA, 2018</strong>: distinction among running, intended, and operational configuration state.</li> <li> <strong>RFC 9110, HTTP Semantics, 2022</strong>: semantics of 4xx client errors, including <code class="language-plaintext highlighter-rouge">400 Bad Request</code>.</li> <li> <strong>JSON Schema Draft 2020-12, 2022</strong>: structural and value-level validation for JSON instances.</li> </ul> <h2 id="key-technical-insights">Key Technical Insights</h2> <ul> <li> <strong>Syntactic validity is not semantic validity.</strong> A JSON parser may accept a string containing trailing whitespace while the configuration schema rejects it.</li> <li> <strong>Atomic rejection protects consistency.</strong> Rejecting an entire configuration transaction avoids partial application, but it increases the blast radius of a single invalid field.</li> <li> <strong>Controller state is not proof of device state.</strong> A successful UI save proves that intended state changed; it does not prove that the device accepted or applied it.</li> <li> <strong>Migration errors and commit blockers are not necessarily the same fault.</strong> Follow the log chronology through migration, revalidation, and commit.</li> <li> <strong>Persistent invalid data becomes self-perpetuating.</strong> Any future full-document push can fail until the offending stored value is rewritten or removed.</li> <li> <strong>Backups can preserve logical corruption.</strong> Restoring a backup that contains the same schema-invalid object simply recreates the failure.</li> <li> <strong>Long-lived push failures create configuration debt.</strong> Later changes may accumulate in intended state while operational state remains frozen.</li> </ul> <h2 id="prevention-strategies-and-takeaways">Prevention Strategies and Takeaways</h2> <p>Treat structured network configuration as a software delivery pipeline rather than a collection of independent UI settings.</p> <ul> <li>Validate data <strong>at entry time</strong> in the controller, not only on the managed device.</li> <li>Normalize user-entered identifiers with explicit trimming rules where whitespace is not meaningful.</li> <li>Keep schema versions explicit and test migration paths across every supported historical revision.</li> <li>Make validation errors return the precise object path, rejected value class, and schema rule.</li> <li>Track <strong>last successful commit time</strong> per device and alert when intended and applied revisions diverge.</li> <li>After correcting a terminal validation error, force a fresh transaction and verify both commit success and operational-state convergence.</li> <li>Audit configuration changes made during the failure window, because they may exist only in intended state.</li> <li>Prefer pre-change or known-good backups when rollback is necessary; do not assume a recent backup is valid merely because it is recent.</li> </ul> <p>The practical RCA pattern is straightforward: identify the full configuration transaction, locate the earliest transformation step, find the <strong>last validation error before commit abort</strong>, correct the stored source value, and then prove convergence between intended and operational state. That method applies well beyond network appliances to any declarative system where a controller generates a complete desired-state document and an agent validates it before applying changes.</p> </div> </article> <br> <hr> <br> <h2 class="text-3xl font-semibold mb-4 mt-12">Enjoy Reading This Article?</h2> <p class="mb-2">Here are some more articles you might like to read next:</p> <ul class="list-disc pl-7 my-3 space-y-2 marker:text-[var(--global-theme-color)]"> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/transient-network-outage-isolation/">Diagnosing Transient Network Outages with Fault-Domain Isolation</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/sfp-plus-link-flaps/">When 10GBASE-T SFP+ Modules Destabilize Ethernet Links</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/ipsec-phase2-selectors/">IPsec Phase 2 Traffic Selectors and Partial Tunnel Failures</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/nut-calibration-state-failure/">When UPS Calibration State Becomes a Shutdown Hazard in Network UPS Tools</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/diagnosing-wan-failures/">Diagnosing WAN Failures Beyond Physical Link State</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/linux-critical-thermal-shutdowns/">Diagnosing Linux Critical Thermal Shutdowns</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/wireguard-site-to-site-split-tunneling/">WireGuard Site-to-Site Routing with Selective Split Tunneling</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/docker-images-containers-air-gapped-debian/">Building and Transferring Docker Images to Air-Gapped Debian Systems</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/configuring-git-github-ssh-access-safely/">Configuring Git and GitHub SSH Access Safely</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/welcome-to-the-learning-hub/">Welcome to the Learning Hub</a> </li> </ul> </div> </div> <footer class="sticky-bottom mt-5" role="contentinfo"> <div class="container"> © Copyright 2026 Harsh Verma. Built with <a href="https://jekyllrb.com/" target="_blank" rel="external nofollow noopener">Jekyll</a> and <a href="https://github.com/alshedivat/al-folio" target="_blank" rel="external nofollow noopener">al-folio</a>. Hosted on GitHub Pages. </div> </footer> <script>
+  window.alFolio = {
+    compatBootstrap: false
+  };
+</script> <script src="/assets/js/nav-toggle.js?v=141bd79a73ebc0f0b6ea58e440ae79fc"></script> <script defer src="https://cdn.jsdelivr.net/npm/masonry-layout@4.2.2/dist/masonry.pkgd.min.js" integrity="sha256-Nn1q/fx0H7SNLZMQ5Hw5JLaTRZp0yILA/FRexe19VdI=" crossorigin="anonymous"></script> <script defer src="https://cdn.jsdelivr.net/npm/imagesloaded@5.0.0/imagesloaded.pkgd.min.js" integrity="sha256-htrLFfZJ6v5udOG+3kNLINIKh2gvoKqwEhHYfTTMICc=" crossorigin="anonymous"></script> <script defer src="/assets/js/masonry.js?v=e49affc7bd2646f6acdad1dbe02c2359" type="text/javascript"></script> <script defer type="text/javascript" id="MathJax-script" src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-mml-chtml.js" integrity="sha256-MASABpB4tYktI2Oitl4t+78w/lyA+D7b/s9GEP0JOGI=" crossorigin="anonymous"></script> <script src="/assets/al_math/js/mathjax-setup.js"></script> <script src="/assets/js/tooltips-setup.js?v=fe487e99db6c43751e6e7bdb2d6a0611"></script> <script src="/assets/js/no_defer.js?v=53b1b1a645525975c963ce8bf8bfefcf"></script> <script defer src="/assets/js/common.js?v=87baac90f765f2f3362dcf6aaf312a8a"></script> <script defer src="/assets/js/copy_code.js?v=c8a01c11a92744d44b093fc3bda915df" type="text/javascript"></script> <script defer src="/assets/js/jupyter_new_tab.js?v=896d254890d9b47f0281f63bfccf0dee"></script> <script async src="https://d1bxh8uas1mnw7.cloudfront.net/assets/embed.js"></script> <script async src="https://badge.dimensions.ai/badge.js"></script> <script defer src="https://cdn.jsdelivr.net/npm/medium-zoom@1.1.0/dist/medium-zoom.min.js" integrity="sha256-ZgMyDAIYDYGxbcpJcfUnYwNevG/xi9OHKaR/8GK+jWc=" crossorigin="anonymous"></script> <script defer src="/assets/al_img_tools/js/zoom.js"></script> <script defer src="/assets/js/progress-bar.js?v=499464c5c63ced6cf7ad62509f1e2610" type="text/javascript"></script> <script src="https://cdn.jsdelivr.net/npm/vanilla-back-to-top@7.2.1/dist/vanilla-back-to-top.min.js" integrity="sha256-uMJJ3EoTyfRBoTbR+lrfu1uRQ87RZG8AR3cVNuQVeFg=" crossorigin="anonymous"></script> <script>
+    addBackToTop();
+  </script> <script type="module" src="/assets/al_search/js/search/ninja-keys.min.js"></script> <ninja-keys hidebreadcrumbs noautoloadmdicons placeholder="Type to start searching"></ninja-keys> <script src="/assets/al_search/js/search-setup.js"></script> <script>
+// get the ninja-keys element
+const ninja = document.querySelector('ninja-keys');
+
+// add the home and posts menu items
+ninja.data = [{
+    id: "nav-about",
+    title: "About",
+    section: "Navigation",
+    handler: () => {
+      window.location.href = "/";
+    },
+  },{id: "nav-projects",
+          title: "Projects",
+          description: "",
+          section: "Navigation",
+          handler: () => {
+            window.location.href = "/#projects";
+          },
+        },{id: "nav-learning-hub",
+          title: "Learning Hub",
+          description: "Practical notes on servers, networking, Linux, security, and infrastructure automation.",
+          section: "Navigation",
+          handler: () => {
+            window.location.href = "/learn/index.html";
+          },
+        },{id: "nav-certifications",
+          title: "Certifications",
+          description: "Professional certifications across networking, cybersecurity, and infrastructure.",
+          section: "Navigation",
+          handler: () => {
+            window.location.href = "/certs/";
+          },
+        },{id: "post-atomic-configuration-validation-and-control-plane-drift",
+        
+          title: "Atomic Configuration Validation and Control-Plane Drift",
+        
+        description: "How schema validation, transactional configuration pushes, and datastore drift can cause a single invalid field to block an entire network-device configuration.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/atomic-config-validation/";
+          
+        },
+      },{id: "post-diagnosing-transient-network-outages-with-fault-domain-isolation",
+        
+          title: "Diagnosing Transient Network Outages with Fault-Domain Isolation",
+        
+        description: "A vendor-neutral method for separating gateway, switching, wireless authentication, and logging failures during short-lived network disruptions.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/transient-network-outage-isolation/";
+          
+        },
+      },{id: "post-when-10gbase-t-sfp-modules-destabilize-ethernet-links",
+        
+          title: "When 10GBASE-T SFP+ Modules Destabilize Ethernet Links",
+        
+        description: "How SFP+ module identification, PHY mode selection, and repeated link-state transitions can collapse TCP throughput even when an interface nominally reports 10 Gb/s.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/sfp-plus-link-flaps/";
+          
+        },
+      },{id: "post-ipsec-phase-2-traffic-selectors-and-partial-tunnel-failures",
+        
+          title: "IPsec Phase 2 Traffic Selectors and Partial Tunnel Failures",
+        
+        description: "Why an IPsec tunnel can remain established while one subnet pair fails because routing state and negotiated traffic selectors are separate control-plane objects.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/ipsec-phase2-selectors/";
+          
+        },
+      },{id: "post-when-ups-calibration-state-becomes-a-shutdown-hazard-in-network-ups-tools",
+        
+          title: "When UPS Calibration State Becomes a Shutdown Hazard in Network UPS Tools",
+        
+        description: "A deep analysis of how stale NUT calibration state can turn a brief monitoring outage into an immediate infrastructure shutdown.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/nut-calibration-state-failure/";
+          
+        },
+      },{id: "post-diagnosing-wan-failures-beyond-physical-link-state",
+        
+          title: "Diagnosing WAN Failures Beyond Physical Link State",
+        
+        description: "A layered method for distinguishing Ethernet carrier loss, upstream path degradation, and application-level failure in redundant WAN designs.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/diagnosing-wan-failures/";
+          
+        },
+      },{id: "post-diagnosing-linux-critical-thermal-shutdowns",
+        
+          title: "Diagnosing Linux Critical Thermal Shutdowns",
+        
+        description: "A practical framework for distinguishing genuine silicon overheating from faulty thermal telemetry when Linux initiates a protective shutdown.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/linux-critical-thermal-shutdowns/";
+          
+        },
+      },{id: "post-wireguard-site-to-site-routing-with-selective-split-tunneling",
+        
+          title: "WireGuard Site-to-Site Routing with Selective Split Tunneling",
+        
+        description: "How WireGuard cryptokey routing, policy-based forwarding, firewall rules, NAT, and return paths combine in a selective site-to-site VPN design.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/wireguard-site-to-site-split-tunneling/";
+          
+        },
+      },{id: "post-building-and-transferring-docker-images-to-air-gapped-debian-systems",
+        
+          title: "Building and Transferring Docker Images to Air-Gapped Debian Systems",
+        
+        description: "A practical Debian-focused guide to Docker images, containers, offline Docker installation, and transferring workloads into air-gapped environments.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/docker-images-containers-air-gapped-debian/";
+          
+        },
+      },{id: "post-configuring-git-and-github-ssh-access-safely",
+        
+          title: "Configuring Git and GitHub SSH Access Safely",
+        
+        description: "A practical guide to configuring Git identity, setting up SSH authentication with GitHub, managing remotes, and pushing changes safely.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/configuring-git-github-ssh-access-safely/";
+          
+        },
+      },{id: "post-welcome-to-the-learning-hub",
+        
+          title: "Welcome to the Learning Hub",
+        
+        description: "A home for practical notes on infrastructure, networking, Linux, and automation.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/welcome-to-the-learning-hub/";
+          
+        },
+      },{
+        id: 'social-email',
+        title: 'email',
+        section: 'Socials',
+        handler: () => {
+          window.open("mailto:%68%61%72%73%68%76%65%72%6D%61%63%35@%67%6D%61%69%6C.%63%6F%6D", "_blank");
+        },
+      },{
+        id: 'social-github',
+        title: 'GitHub',
+        section: 'Socials',
+        handler: () => {
+          window.open("https://github.com/harshvermac5", "_blank");
+        },
+      },{
+        id: 'social-linkedin',
+        title: 'LinkedIn',
+        section: 'Socials',
+        handler: () => {
+          window.open("https://www.linkedin.com/in/harshvermac5", "_blank");
+        },
+      },{
+        id: 'social-rss',
+        title: 'RSS Feed',
+        section: 'Socials',
+        handler: () => {
+          window.open("/feed.xml", "_blank");
+        },
+      },{
+      id: 'light-theme',
+      title: 'Change theme to light',
+      description: 'Change the theme of the site to Light',
+      section: 'Theme',
+      handler: () => {
+        setThemeSetting("light");
+      },
+    },
+    {
+      id: 'dark-theme',
+      title: 'Change theme to dark',
+      description: 'Change the theme of the site to Dark',
+      section: 'Theme',
+      handler: () => {
+        setThemeSetting("dark");
+      },
+    },
+    {
+      id: 'system-theme',
+      title: 'Use system default theme',
+      description: 'Change the theme of the site to System Default',
+      section: 'Theme',
+      handler: () => {
+        setThemeSetting("system");
+      },
+    },];
+
+</script> <script src="/assets/al_search/js/shortcut-key.js"></script> </body> </html>
