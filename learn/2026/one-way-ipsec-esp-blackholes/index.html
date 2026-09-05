@@ -1,0 +1,267 @@
+<!DOCTYPE html> <html lang="en"> <head> <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"> <meta charset="utf-8"> <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no"> <meta http-equiv="X-UA-Compatible" content="IE=edge"> <title> When IKE Is Healthy but IPsec Is Broken: Diagnosing One-Way ESP Black Holes | Harsh Verma </title> <meta name="author" content="Harsh Verma"> <meta name="description" content="Why an IPsec tunnel can remain established at the IKE control plane while ESP traffic silently fails in one direction, and how to diagnose the split correctly."> <meta name="keywords" content="server engineer, network engineer, linux, data center, infrastructure automation, portfolio"> <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https:; style-src 'self' 'unsafe-inline' https:; img-src 'self' data: https:; font-src 'self' data: https:; media-src 'self' https:; frame-src 'self' https:; connect-src 'self' https:;"> <style>
+  :root {
+    --max-content-width: 1100px;
+  }
+</style> <link rel="stylesheet" href="/assets/css/tailwind.css?v=50c64c15cbb9fd1ce6056fdb8bcb4b62"> <link defer rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.2.0/css/all.min.css" integrity="sha256-MVopmdyC2tYTiJ8wlktf0uh0v4NgT+vNdyVFepi7Q0c=" crossorigin="anonymous"> <link defer rel="stylesheet" href="https://cdn.jsdelivr.net/npm/academicons@1.9.5/css/academicons.min.css" integrity="sha256-SzrCOBJbGVFMahewkgjwnApaV2+av1DwMAA+/QGLyZw=" crossorigin="anonymous"> <link defer rel="stylesheet" href="https://cdn.jsdelivr.net/npm/scholar-icons@1.0.3/css/scholar-icons.css" integrity="sha256-VY3hHVj/hNX3fYG6wtbA6TcKJQl7+FthzGSyIB64klY=" crossorigin="anonymous"> <link defer rel="stylesheet" type="text/css" href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700|Roboto+Slab:100,300,400,500,700|Material+Icons&amp;display=swap"> <link defer rel="stylesheet" href="/assets/css/jekyll-pygments-themes-github.css?v=591dab5a4e56573bf4ef7fd332894c99" media="" id="highlight_theme_light"> <link rel="shortcut icon" href="data:image/svg+xml,&lt;svg%20xmlns=%22http://www.w3.org/2000/svg%22%20viewBox=%220%200%20100%20100%22&gt;&lt;text%20y=%22.9em%22%20font-size=%2290%22&gt;%F0%9F%96%A5%EF%B8%8F&lt;/text&gt;&lt;/svg&gt;"> <link rel="stylesheet" href="/assets/css/main.css?v=3116ba77db9ee1581d05bb3e86fbf7f1"> <link rel="canonical" href="https://harshvermac5.github.io/learn/2026/one-way-ipsec-esp-blackholes/"> <script src="/assets/js/theme.js?v=5286c3e4c334d0ecb8fc0c40ff4fa7ec"></script> <link defer rel="stylesheet" href="/assets/css/jekyll-pygments-themes-native.css?v=5847e5ed4a4568527aa6cfab446049ca" media="none" id="highlight_theme_dark"> <script>
+    initTheme();
+  </script> </head> <body class="fixed-top-nav sticky-bottom-footer"> <header> <nav id="navbar" class="navbar navbar-light navbar-expand-sm fixed-top" role="navigation"> <div class="container"> <a class="navbar-brand title font-weight-lighter" href="/"> Harsh Verma </a> <button class="navbar-toggler collapsed navbar-toggler-main" type="button" data-nav-toggle="navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation"> <span class="sr-only">Toggle navigation</span> <span class="icon-bar top-bar"></span> <span class="icon-bar middle-bar"></span> <span class="icon-bar bottom-bar"></span> </button> <div class="collapse navbar-collapse navbar-collapse-main" id="navbarNav"> <ul class="navbar-nav navbar-menu-list flex-nowrap"> <li class="nav-item "> <a class="nav-link" href="/">About </a> </li> <li class="nav-item "> <a class="nav-link" href="/#projects">Projects </a> </li> <li class="nav-item active"> <a class="nav-link" href="/learn/index.html">Learning Hub </a> </li> <li class="nav-item "> <a class="nav-link" href="/certs/">Certifications </a> </li> <li class="nav-item"> <button id="search-toggle" type="button" title="Search" aria-label="Open search"> <span class="nav-link">ctrl k <i class="fa-solid fa-magnifying-glass"></i></span> </button> </li> <li class="toggle-container"> <button id="light-toggle" type="button" title="Change theme" aria-label="Change color theme"> <i class="fa-half-sun-moon" id="light-toggle-system"></i> <i class="fa-solid fa-moon" id="light-toggle-dark"></i> <i class="fa-solid fa-sun" id="light-toggle-light"></i> </button> </li> </ul> </div> </div> </nav> <progress id="progress" value="0"> <div class="progress-container"> <span class="progress-bar"></span> </div> </progress> </header> <div class="container mt-5" role="main"> <div class="post"> <header class="post-header"> <h1 class="post-title">When IKE Is Healthy but IPsec Is Broken: Diagnosing One-Way ESP Black Holes</h1> <p class="post-meta"> Created on September 04, 2026 </p> <p class="post-tags"> <i class="fa-solid fa-calendar fa-sm"></i> 2026   ·   <i class="fa-solid fa-hashtag fa-sm"></i> ipsec   <i class="fa-solid fa-hashtag fa-sm"></i> ike   <i class="fa-solid fa-hashtag fa-sm"></i> esp   <i class="fa-solid fa-hashtag fa-sm"></i> vpn   <i class="fa-solid fa-hashtag fa-sm"></i> linux   ·   <i class="fa-solid fa-tag fa-sm"></i> Networking </p> </header> <article class="post-content"> <div id="markdown-content"> <h2 id="problem-statement-or-learning-objective">Problem Statement or Learning Objective</h2> <p>An IPsec tunnel can be <strong>cryptographically established, successfully rekeying, and passing Dead Peer Detection while still being unusable for application traffic</strong>. The reason is architectural: IKE and ESP have different roles and different state machines.</p> <p>IKE creates and maintains Security Associations. ESP carries protected user traffic. A healthy IKE exchange proves that the key-management peers can communicate; it does not prove that both ESP directions are forwarding packets.</p> <p>This distinction matters in <strong>one-way ESP black holes</strong>, where one gateway keeps encrypting traffic and incrementing outbound SA counters while the opposite direction receives or decrypts nothing. Monitoring that checks only “IKE established” can therefore miss a real outage.</p> <p>The objective is to understand how to separate <strong>control-plane liveness</strong> from <strong>data-plane forwarding</strong>, why simplex IPsec SAs allow directional failures, and how to prove where traffic disappears.</p> <h2 id="co-technical-subject">Co-Technical Subject</h2> <p><strong>IPsec Security Association state, IKE liveness, ESP forwarding, rekey behavior, and Linux XFRM diagnostics.</strong></p> <p>The relevant domains are route-based VPN architecture, IKEv1/IKEv2 SA management, ESP SPI handling, directional SA pairing, and packet-level fault isolation.</p> <h2 id="theoretical-foundation">Theoretical Foundation</h2> <p><strong>RFC 4301, Security Architecture for the Internet Protocol, December 2005</strong> defines a fundamental property of IPsec: an SA is directional. The RFC states that <a href="https://www.rfc-editor.org/rfc/rfc4301.html#section-4.1" rel="external nofollow noopener" target="_blank">“An SA is a simplex ‘connection’ that affords security services to the traffic carried by it.”</a></p> <p>Bidirectional communication therefore depends on <strong>two SAs</strong>, one in each direction. Each inbound ESP SA is identified principally by a <strong>Security Parameters Index</strong>, or SPI, chosen by the receiver. The transmitting peer must use the SPI associated with that receiver’s inbound SA.</p> <p><strong>RFC 4303, IP Encapsulating Security Payload, December 2005</strong> defines ESP. Native ESP uses IP protocol <strong>50</strong> and provides confidentiality, integrity, origin authentication, anti-replay protection, or combinations of these services according to the negotiated transform set.</p> <p>IKE is separate. <strong>RFC 2409, The Internet Key Exchange, November 1998</strong> defines IKEv1. Main Mode establishes the Phase 1 IKE/ISAKMP SA; Quick Mode negotiates Phase 2 IPsec SAs. RFC 2409 describes that <a href="https://www.rfc-editor.org/rfc/rfc2409.html#section-5.5" rel="external nofollow noopener" target="_blank">“Quick Mode is essentially a SA negotiation and an exchange of nonces that provides replay protection.”</a></p> <p>IKEv1 was superseded by IKEv2. <strong>RFC 7296, Internet Key Exchange Protocol Version 2, October 2014</strong> uses IKE SAs and Child SAs; <code class="language-plaintext highlighter-rouge">CREATE_CHILD_SA</code> creates or rekeys Child SAs.</p> <p>For IKEv1, <strong>RFC 3706, February 2004</strong> describes Dead Peer Detection. Its scope is explicit: <a href="https://www.rfc-editor.org/rfc/rfc3706.html#section-1" rel="external nofollow noopener" target="_blank">“DPD relies on IKE Notify messages to query the liveliness of an IKE peer.”</a></p> <p>That boundary is crucial: <strong>DPD validates peer liveness through IKE. It does not directly validate bidirectional forwarding through every ESP SA.</strong></p> <h2 id="mechanism-breakdown">Mechanism Breakdown</h2> <p>A route-based IPsec VPN may expose a logical tunnel interface, while the kernel still performs protection through IPsec policy and SA databases.</p> <p>A protected packet typically follows this path:</p> <ul> <li>Routing selects the logical tunnel path.</li> <li>IPsec policy marks the packet for protection.</li> <li>The outbound SA is selected.</li> <li>ESP adds the SPI and sequence number, then encrypts and authenticates the payload.</li> <li>The packet crosses the WAN using native ESP or UDP encapsulation for NAT traversal.</li> <li>The peer uses the SPI to locate the matching inbound SA.</li> <li>Anti-replay, integrity, and decryption checks complete before the inner packet is forwarded.</li> </ul> <p>Because each direction has independent SA state, one direction may work while the other fails. The reverse SA can be stale, absent, mapped to the wrong SPI, rejected by anti-replay processing, filtered in transit, or never selected by routing and policy.</p> <p>IKE can remain healthy throughout. UDP/500 or UDP/4500 exchanges may succeed, rekeys may complete, and DPD may receive timely responses. A management system that equates <strong>IKE_SA established</strong> with <strong>VPN healthy</strong> therefore has an incomplete health model.</p> <p>Rekeying adds complexity. IKEv1 Quick Mode or IKEv2 <code class="language-plaintext highlighter-rouge">CREATE_CHILD_SA</code> can briefly leave old and new SAs present at the same time. During intermittent failures, the important question is not merely “Is IKE established?” but <strong>“Are the paired inbound and outbound ESP SAs carrying traffic in both directions?”</strong></p> <h2 id="industry-standards-reference">Industry Standards Reference</h2> <p>The relevant standards are:</p> <ul> <li> <strong>RFC 4301 — Security Architecture for the Internet Protocol, December 2005.</strong> Defines the SPD, SAD, SA model, and paired simplex SAs.</li> <li> <strong>RFC 4303 — IP Encapsulating Security Payload, December 2005.</strong> Defines ESP packet structure, SPIs, sequence numbers, anti-replay, and inbound/outbound processing.</li> <li> <strong>RFC 2409 — The Internet Key Exchange, November 1998.</strong> Defines IKEv1 Main Mode and Quick Mode; obsolete for new protocol design but still operationally relevant.</li> <li> <strong>RFC 3706 — A Traffic-Based Method of Detecting Dead Internet Key Exchange Peers, February 2004.</strong> Defines commonly implemented IKEv1 DPD behavior as an Informational RFC.</li> <li> <strong>RFC 7296 — Internet Key Exchange Protocol Version 2, October 2014.</strong> Defines IKEv2 IKE SAs, Child SAs, liveness, and rekeying.</li> </ul> <p>RFC 7296 also warns about black-hole behavior when a system has only outgoing traffic and has not recently received protected traffic. The lesson is broader than IKEv2: <strong>directional data-plane evidence is required to prove tunnel health.</strong></p> <h2 id="practical-examples-and-evidence">Practical Examples and Evidence</h2> <p>On Linux, IPsec implementations commonly program kernel XFRM state. Start by checking SA and policy counters:</p> <div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>ip <span class="nt">-s</span> xfrm state
+ip <span class="nt">-s</span> xfrm policy
+</code></pre></div></div> <p>A suspicious pattern is an outbound SA whose counters increase while the corresponding inbound SA remains at zero:</p> <div class="language-text highlighter-rouge"><div class="highlight"><pre class="highlight"><code>src 203.0.113.10 dst 198.51.100.20
+    proto esp spi 0x4a21be90
+    packets 18422 bytes 27411833
+
+src 198.51.100.20 dst 203.0.113.10
+    proto esp spi 0x9c772104
+    packets 0 bytes 0
+</code></pre></div></div> <p>If IKE logs simultaneously show successful DPD and normal rekeys, the evidence points to a <strong>data-plane asymmetry</strong>, not a dead-peer failure.</p> <p>Capture native ESP with:</p> <div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>tcpdump <span class="nt">-ni</span> eth0 <span class="s1">'proto 50 and host 198.51.100.20'</span>
+</code></pre></div></div> <p>For NAT traversal, inspect UDP/4500 instead:</p> <div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>tcpdump <span class="nt">-ni</span> eth0 <span class="s1">'udp port 4500 and host 198.51.100.20'</span>
+</code></pre></div></div> <p>The strongest isolation method is a simultaneous capture at both peers.</p> <ul> <li>If the sender’s outbound XFRM counter rises and ESP appears on its WAN, but the receiver never sees it, investigate the path: upstream filtering, CPE behavior, asymmetric routing, or NAT state.</li> <li>If the receiver sees ESP but its inbound SA counter does not rise, investigate SPI mismatch, stale SAD state, integrity failure, or anti-replay rejection.</li> <li>If the sender’s outbound counter does not rise, investigate routing, policy selection, tunnel-interface state, or traffic selectors before encryption.</li> </ul> <h2 id="key-technical-insights">Key Technical Insights</h2> <ul> <li> <strong>IKE health is not ESP health.</strong> A responsive IKE peer can coexist with a failed ESP direction.</li> <li> <strong>IPsec SAs are directional.</strong> Inbound and outbound counters are separate health signals.</li> <li> <strong>DPD detects peer liveness, not application reachability.</strong> Tuning DPD cannot repair a one-way ESP path when IKE remains reachable.</li> <li> <strong>Rekey events are transition points.</strong> Old and new SPIs may coexist briefly, so SPI correlation matters during intermittent failures.</li> <li> <strong>Zero inbound bytes are highly diagnostic.</strong> Growing outbound counters with a zero inbound peer should shift the investigation to directional packet-path analysis.</li> <li> <strong>Monitoring should test the protected path.</strong> Data-plane probes and SA counters complement IKE state.</li> </ul> <h2 id="prevention-strategies-and-takeaways">Prevention Strategies and Takeaways</h2> <ul> <li>Prefer <strong>IKEv2</strong> for new deployments because its Child SA lifecycle is cleaner than legacy IKEv1 Phase 1/Phase 2 handling.</li> <li>Monitor <strong>inbound and outbound ESP counters independently</strong> and alert on sustained directional divergence.</li> <li>Correlate SPIs at both peers during failures rather than trusting a single session-state indicator.</li> <li>Use simultaneous packet captures to determine whether loss occurs before encryption, in transit, or during inbound IPsec processing.</li> <li>Do not treat successful DPD as proof that protected application traffic is healthy.</li> <li>Avoid making critical services such as DNS entirely dependent on a remote tunnel without local fallback; this limits the blast radius of VPN failures.</li> <li>Preserve rekey timestamps, SA creation/deletion events, and XFRM counters so intermittent outages can be reconstructed.</li> </ul> <p>The operational rule is simple: <strong>an established IKE SA proves that key-management peers can communicate; only bidirectional ESP evidence proves that the VPN data path is working.</strong></p> </div> </article> <br> <hr> <br> <h2 class="text-3xl font-semibold mb-4 mt-12">Enjoy Reading This Article?</h2> <p class="mb-2">Here are some more articles you might like to read next:</p> <ul class="list-disc pl-7 my-3 space-y-2 marker:text-[var(--global-theme-color)]"> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/ospf-init-state-firewall/">Diagnosing OSPF Init State Across Encrypted Overlay Tunnels</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/ospf-tunnel-source-routing/">When OSPF Routes Work but Gateway-Originated Tunnel Traffic Fails</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/atomic-config-validation/">Atomic Configuration Validation and Control-Plane Drift</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/transient-network-outage-isolation/">Diagnosing Transient Network Outages with Fault-Domain Isolation</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/sfp-plus-link-flaps/">When 10GBASE-T SFP+ Modules Destabilize Ethernet Links</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/ipsec-phase2-selectors/">IPsec Phase 2 Traffic Selectors and Partial Tunnel Failures</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/nut-calibration-state-failure/">When UPS Calibration State Becomes a Shutdown Hazard in Network UPS Tools</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/diagnosing-wan-failures/">Diagnosing WAN Failures Beyond Physical Link State</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/linux-critical-thermal-shutdowns/">Diagnosing Linux Critical Thermal Shutdowns</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/wireguard-site-to-site-split-tunneling/">WireGuard Site-to-Site Routing with Selective Split Tunneling</a> </li> </ul> </div> </div> <footer class="sticky-bottom mt-5" role="contentinfo"> <div class="container"> © Copyright 2026 Harsh Verma. Built with <a href="https://jekyllrb.com/" target="_blank" rel="external nofollow noopener">Jekyll</a> and <a href="https://github.com/alshedivat/al-folio" target="_blank" rel="external nofollow noopener">al-folio</a>. Hosted on GitHub Pages. </div> </footer> <script>
+  window.alFolio = {
+    compatBootstrap: false
+  };
+</script> <script src="/assets/js/nav-toggle.js?v=141bd79a73ebc0f0b6ea58e440ae79fc"></script> <script defer src="https://cdn.jsdelivr.net/npm/masonry-layout@4.2.2/dist/masonry.pkgd.min.js" integrity="sha256-Nn1q/fx0H7SNLZMQ5Hw5JLaTRZp0yILA/FRexe19VdI=" crossorigin="anonymous"></script> <script defer src="https://cdn.jsdelivr.net/npm/imagesloaded@5.0.0/imagesloaded.pkgd.min.js" integrity="sha256-htrLFfZJ6v5udOG+3kNLINIKh2gvoKqwEhHYfTTMICc=" crossorigin="anonymous"></script> <script defer src="/assets/js/masonry.js?v=e49affc7bd2646f6acdad1dbe02c2359" type="text/javascript"></script> <script defer type="text/javascript" id="MathJax-script" src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-mml-chtml.js" integrity="sha256-MASABpB4tYktI2Oitl4t+78w/lyA+D7b/s9GEP0JOGI=" crossorigin="anonymous"></script> <script src="/assets/al_math/js/mathjax-setup.js"></script> <script src="/assets/js/tooltips-setup.js?v=fe487e99db6c43751e6e7bdb2d6a0611"></script> <script src="/assets/js/no_defer.js?v=53b1b1a645525975c963ce8bf8bfefcf"></script> <script defer src="/assets/js/common.js?v=87baac90f765f2f3362dcf6aaf312a8a"></script> <script defer src="/assets/js/copy_code.js?v=c8a01c11a92744d44b093fc3bda915df" type="text/javascript"></script> <script defer src="/assets/js/jupyter_new_tab.js?v=896d254890d9b47f0281f63bfccf0dee"></script> <script async src="https://d1bxh8uas1mnw7.cloudfront.net/assets/embed.js"></script> <script async src="https://badge.dimensions.ai/badge.js"></script> <script defer src="https://cdn.jsdelivr.net/npm/medium-zoom@1.1.0/dist/medium-zoom.min.js" integrity="sha256-ZgMyDAIYDYGxbcpJcfUnYwNevG/xi9OHKaR/8GK+jWc=" crossorigin="anonymous"></script> <script defer src="/assets/al_img_tools/js/zoom.js"></script> <script defer src="/assets/js/progress-bar.js?v=499464c5c63ced6cf7ad62509f1e2610" type="text/javascript"></script> <script src="https://cdn.jsdelivr.net/npm/vanilla-back-to-top@7.2.1/dist/vanilla-back-to-top.min.js" integrity="sha256-uMJJ3EoTyfRBoTbR+lrfu1uRQ87RZG8AR3cVNuQVeFg=" crossorigin="anonymous"></script> <script>
+    addBackToTop();
+  </script> <script type="module" src="/assets/al_search/js/search/ninja-keys.min.js"></script> <ninja-keys hidebreadcrumbs noautoloadmdicons placeholder="Type to start searching"></ninja-keys> <script src="/assets/al_search/js/search-setup.js"></script> <script>
+// get the ninja-keys element
+const ninja = document.querySelector('ninja-keys');
+
+// add the home and posts menu items
+ninja.data = [{
+    id: "nav-about",
+    title: "About",
+    section: "Navigation",
+    handler: () => {
+      window.location.href = "/";
+    },
+  },{id: "nav-projects",
+          title: "Projects",
+          description: "",
+          section: "Navigation",
+          handler: () => {
+            window.location.href = "/#projects";
+          },
+        },{id: "nav-learning-hub",
+          title: "Learning Hub",
+          description: "Practical notes on servers, networking, Linux, security, and infrastructure automation.",
+          section: "Navigation",
+          handler: () => {
+            window.location.href = "/learn/index.html";
+          },
+        },{id: "nav-certifications",
+          title: "Certifications",
+          description: "Professional certifications across networking, cybersecurity, and infrastructure.",
+          section: "Navigation",
+          handler: () => {
+            window.location.href = "/certs/";
+          },
+        },{id: "post-diagnosing-ospf-init-state-across-encrypted-overlay-tunnels",
+        
+          title: "Diagnosing OSPF Init State Across Encrypted Overlay Tunnels",
+        
+        description: "How asymmetric OSPF Hello filtering can leave encrypted tunnels healthy while dynamic route exchange silently fails.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/ospf-init-state-firewall/";
+          
+        },
+      },{id: "post-when-ospf-routes-work-but-gateway-originated-tunnel-traffic-fails",
+        
+          title: "When OSPF Routes Work but Gateway-Originated Tunnel Traffic Fails",
+        
+        description: "Why multi-hop OSPF over encrypted tunnels can forward LAN traffic successfully while gateway-originated flows fail because tunnel /32 source addresses lack a return route.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/ospf-tunnel-source-routing/";
+          
+        },
+      },{id: "post-when-ike-is-healthy-but-ipsec-is-broken-diagnosing-one-way-esp-black-holes",
+        
+          title: "When IKE Is Healthy but IPsec Is Broken: Diagnosing One-Way ESP Black Holes...",
+        
+        description: "Why an IPsec tunnel can remain established at the IKE control plane while ESP traffic silently fails in one direction, and how to diagnose the split correctly.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/one-way-ipsec-esp-blackholes/";
+          
+        },
+      },{id: "post-atomic-configuration-validation-and-control-plane-drift",
+        
+          title: "Atomic Configuration Validation and Control-Plane Drift",
+        
+        description: "How schema validation, transactional configuration pushes, and datastore drift can cause a single invalid field to block an entire network-device configuration.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/atomic-config-validation/";
+          
+        },
+      },{id: "post-diagnosing-transient-network-outages-with-fault-domain-isolation",
+        
+          title: "Diagnosing Transient Network Outages with Fault-Domain Isolation",
+        
+        description: "A vendor-neutral method for separating gateway, switching, wireless authentication, and logging failures during short-lived network disruptions.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/transient-network-outage-isolation/";
+          
+        },
+      },{id: "post-when-10gbase-t-sfp-modules-destabilize-ethernet-links",
+        
+          title: "When 10GBASE-T SFP+ Modules Destabilize Ethernet Links",
+        
+        description: "How SFP+ module identification, PHY mode selection, and repeated link-state transitions can collapse TCP throughput even when an interface nominally reports 10 Gb/s.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/sfp-plus-link-flaps/";
+          
+        },
+      },{id: "post-ipsec-phase-2-traffic-selectors-and-partial-tunnel-failures",
+        
+          title: "IPsec Phase 2 Traffic Selectors and Partial Tunnel Failures",
+        
+        description: "Why an IPsec tunnel can remain established while one subnet pair fails because routing state and negotiated traffic selectors are separate control-plane objects.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/ipsec-phase2-selectors/";
+          
+        },
+      },{id: "post-when-ups-calibration-state-becomes-a-shutdown-hazard-in-network-ups-tools",
+        
+          title: "When UPS Calibration State Becomes a Shutdown Hazard in Network UPS Tools",
+        
+        description: "A deep analysis of how stale NUT calibration state can turn a brief monitoring outage into an immediate infrastructure shutdown.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/nut-calibration-state-failure/";
+          
+        },
+      },{id: "post-diagnosing-wan-failures-beyond-physical-link-state",
+        
+          title: "Diagnosing WAN Failures Beyond Physical Link State",
+        
+        description: "A layered method for distinguishing Ethernet carrier loss, upstream path degradation, and application-level failure in redundant WAN designs.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/diagnosing-wan-failures/";
+          
+        },
+      },{id: "post-diagnosing-linux-critical-thermal-shutdowns",
+        
+          title: "Diagnosing Linux Critical Thermal Shutdowns",
+        
+        description: "A practical framework for distinguishing genuine silicon overheating from faulty thermal telemetry when Linux initiates a protective shutdown.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/linux-critical-thermal-shutdowns/";
+          
+        },
+      },{id: "post-wireguard-site-to-site-routing-with-selective-split-tunneling",
+        
+          title: "WireGuard Site-to-Site Routing with Selective Split Tunneling",
+        
+        description: "How WireGuard cryptokey routing, policy-based forwarding, firewall rules, NAT, and return paths combine in a selective site-to-site VPN design.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/wireguard-site-to-site-split-tunneling/";
+          
+        },
+      },{id: "post-building-and-transferring-docker-images-to-air-gapped-debian-systems",
+        
+          title: "Building and Transferring Docker Images to Air-Gapped Debian Systems",
+        
+        description: "A practical Debian-focused guide to Docker images, containers, offline Docker installation, and transferring workloads into air-gapped environments.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/docker-images-containers-air-gapped-debian/";
+          
+        },
+      },{id: "post-configuring-git-and-github-ssh-access-safely",
+        
+          title: "Configuring Git and GitHub SSH Access Safely",
+        
+        description: "A practical guide to configuring Git identity, setting up SSH authentication with GitHub, managing remotes, and pushing changes safely.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/configuring-git-github-ssh-access-safely/";
+          
+        },
+      },{id: "post-welcome-to-the-learning-hub",
+        
+          title: "Welcome to the Learning Hub",
+        
+        description: "A home for practical notes on infrastructure, networking, Linux, and automation.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/welcome-to-the-learning-hub/";
+          
+        },
+      },{
+        id: 'social-email',
+        title: 'email',
+        section: 'Socials',
+        handler: () => {
+          window.open("mailto:%68%61%72%73%68%76%65%72%6D%61%63%35@%67%6D%61%69%6C.%63%6F%6D", "_blank");
+        },
+      },{
+        id: 'social-github',
+        title: 'GitHub',
+        section: 'Socials',
+        handler: () => {
+          window.open("https://github.com/harshvermac5", "_blank");
+        },
+      },{
+        id: 'social-linkedin',
+        title: 'LinkedIn',
+        section: 'Socials',
+        handler: () => {
+          window.open("https://www.linkedin.com/in/harshvermac5", "_blank");
+        },
+      },{
+        id: 'social-rss',
+        title: 'RSS Feed',
+        section: 'Socials',
+        handler: () => {
+          window.open("/feed.xml", "_blank");
+        },
+      },{
+      id: 'light-theme',
+      title: 'Change theme to light',
+      description: 'Change the theme of the site to Light',
+      section: 'Theme',
+      handler: () => {
+        setThemeSetting("light");
+      },
+    },
+    {
+      id: 'dark-theme',
+      title: 'Change theme to dark',
+      description: 'Change the theme of the site to Dark',
+      section: 'Theme',
+      handler: () => {
+        setThemeSetting("dark");
+      },
+    },
+    {
+      id: 'system-theme',
+      title: 'Use system default theme',
+      description: 'Change the theme of the site to System Default',
+      section: 'Theme',
+      handler: () => {
+        setThemeSetting("system");
+      },
+    },];
+
+</script> <script src="/assets/al_search/js/shortcut-key.js"></script> </body> </html>

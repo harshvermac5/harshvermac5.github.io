@@ -43,7 +43,40 @@ ninja.data = [{
           handler: () => {
             window.location.href = "/certs/";
           },
-        },{id: "post-atomic-configuration-validation-and-control-plane-drift",
+        },{id: "post-diagnosing-ospf-init-state-across-encrypted-overlay-tunnels",
+        
+          title: "Diagnosing OSPF Init State Across Encrypted Overlay Tunnels",
+        
+        description: "How asymmetric OSPF Hello filtering can leave encrypted tunnels healthy while dynamic route exchange silently fails.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/ospf-init-state-firewall/";
+          
+        },
+      },{id: "post-when-ospf-routes-work-but-gateway-originated-tunnel-traffic-fails",
+        
+          title: "When OSPF Routes Work but Gateway-Originated Tunnel Traffic Fails",
+        
+        description: "Why multi-hop OSPF over encrypted tunnels can forward LAN traffic successfully while gateway-originated flows fail because tunnel /32 source addresses lack a return route.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/ospf-tunnel-source-routing/";
+          
+        },
+      },{id: "post-when-ike-is-healthy-but-ipsec-is-broken-diagnosing-one-way-esp-black-holes",
+        
+          title: "When IKE Is Healthy but IPsec Is Broken: Diagnosing One-Way ESP Black Holes...",
+        
+        description: "Why an IPsec tunnel can remain established at the IKE control plane while ESP traffic silently fails in one direction, and how to diagnose the split correctly.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/one-way-ipsec-esp-blackholes/";
+          
+        },
+      },{id: "post-atomic-configuration-validation-and-control-plane-drift",
         
           title: "Atomic Configuration Validation and Control-Plane Drift",
         

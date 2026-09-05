@@ -1,0 +1,273 @@
+<!DOCTYPE html> <html lang="en"> <head> <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"> <meta charset="utf-8"> <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no"> <meta http-equiv="X-UA-Compatible" content="IE=edge"> <title> Diagnosing OSPF Init State Across Encrypted Overlay Tunnels | Harsh Verma </title> <meta name="author" content="Harsh Verma"> <meta name="description" content="How asymmetric OSPF Hello filtering can leave encrypted tunnels healthy while dynamic route exchange silently fails."> <meta name="keywords" content="server engineer, network engineer, linux, data center, infrastructure automation, portfolio"> <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https:; style-src 'self' 'unsafe-inline' https:; img-src 'self' data: https:; font-src 'self' data: https:; media-src 'self' https:; frame-src 'self' https:; connect-src 'self' https:;"> <style>
+  :root {
+    --max-content-width: 1100px;
+  }
+</style> <link rel="stylesheet" href="/assets/css/tailwind.css?v=50c64c15cbb9fd1ce6056fdb8bcb4b62"> <link defer rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.2.0/css/all.min.css" integrity="sha256-MVopmdyC2tYTiJ8wlktf0uh0v4NgT+vNdyVFepi7Q0c=" crossorigin="anonymous"> <link defer rel="stylesheet" href="https://cdn.jsdelivr.net/npm/academicons@1.9.5/css/academicons.min.css" integrity="sha256-SzrCOBJbGVFMahewkgjwnApaV2+av1DwMAA+/QGLyZw=" crossorigin="anonymous"> <link defer rel="stylesheet" href="https://cdn.jsdelivr.net/npm/scholar-icons@1.0.3/css/scholar-icons.css" integrity="sha256-VY3hHVj/hNX3fYG6wtbA6TcKJQl7+FthzGSyIB64klY=" crossorigin="anonymous"> <link defer rel="stylesheet" type="text/css" href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700|Roboto+Slab:100,300,400,500,700|Material+Icons&amp;display=swap"> <link defer rel="stylesheet" href="/assets/css/jekyll-pygments-themes-github.css?v=591dab5a4e56573bf4ef7fd332894c99" media="" id="highlight_theme_light"> <link rel="shortcut icon" href="data:image/svg+xml,&lt;svg%20xmlns=%22http://www.w3.org/2000/svg%22%20viewBox=%220%200%20100%20100%22&gt;&lt;text%20y=%22.9em%22%20font-size=%2290%22&gt;%F0%9F%96%A5%EF%B8%8F&lt;/text&gt;&lt;/svg&gt;"> <link rel="stylesheet" href="/assets/css/main.css?v=3116ba77db9ee1581d05bb3e86fbf7f1"> <link rel="canonical" href="https://harshvermac5.github.io/learn/2026/ospf-init-state-firewall/"> <script src="/assets/js/theme.js?v=5286c3e4c334d0ecb8fc0c40ff4fa7ec"></script> <link defer rel="stylesheet" href="/assets/css/jekyll-pygments-themes-native.css?v=5847e5ed4a4568527aa6cfab446049ca" media="none" id="highlight_theme_dark"> <script>
+    initTheme();
+  </script> </head> <body class="fixed-top-nav sticky-bottom-footer"> <header> <nav id="navbar" class="navbar navbar-light navbar-expand-sm fixed-top" role="navigation"> <div class="container"> <a class="navbar-brand title font-weight-lighter" href="/"> Harsh Verma </a> <button class="navbar-toggler collapsed navbar-toggler-main" type="button" data-nav-toggle="navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation"> <span class="sr-only">Toggle navigation</span> <span class="icon-bar top-bar"></span> <span class="icon-bar middle-bar"></span> <span class="icon-bar bottom-bar"></span> </button> <div class="collapse navbar-collapse navbar-collapse-main" id="navbarNav"> <ul class="navbar-nav navbar-menu-list flex-nowrap"> <li class="nav-item "> <a class="nav-link" href="/">About </a> </li> <li class="nav-item "> <a class="nav-link" href="/#projects">Projects </a> </li> <li class="nav-item active"> <a class="nav-link" href="/learn/index.html">Learning Hub </a> </li> <li class="nav-item "> <a class="nav-link" href="/certs/">Certifications </a> </li> <li class="nav-item"> <button id="search-toggle" type="button" title="Search" aria-label="Open search"> <span class="nav-link">ctrl k <i class="fa-solid fa-magnifying-glass"></i></span> </button> </li> <li class="toggle-container"> <button id="light-toggle" type="button" title="Change theme" aria-label="Change color theme"> <i class="fa-half-sun-moon" id="light-toggle-system"></i> <i class="fa-solid fa-moon" id="light-toggle-dark"></i> <i class="fa-solid fa-sun" id="light-toggle-light"></i> </button> </li> </ul> </div> </div> </nav> <progress id="progress" value="0"> <div class="progress-container"> <span class="progress-bar"></span> </div> </progress> </header> <div class="container mt-5" role="main"> <div class="post"> <header class="post-header"> <h1 class="post-title">Diagnosing OSPF Init State Across Encrypted Overlay Tunnels</h1> <p class="post-meta"> Created on September 05, 2026 </p> <p class="post-tags"> <i class="fa-solid fa-calendar fa-sm"></i> 2026   ·   <i class="fa-solid fa-hashtag fa-sm"></i> ospf   <i class="fa-solid fa-hashtag fa-sm"></i> routing   <i class="fa-solid fa-hashtag fa-sm"></i> firewall   <i class="fa-solid fa-hashtag fa-sm"></i> wireguard   <i class="fa-solid fa-hashtag fa-sm"></i> troubleshooting   ·   <i class="fa-solid fa-tag fa-sm"></i> Networking </p> </header> <article class="post-content"> <div id="markdown-content"> <h2 id="problem-statement-or-learning-objective">Problem Statement or Learning Objective</h2> <p>A healthy encrypted tunnel does not prove that the routing control plane running inside that tunnel is healthy. This distinction becomes critical when an overlay uses <strong>OSPFv2</strong> to exchange site prefixes across a point-to-point encrypted interface.</p> <p>The key diagnostic pattern is an OSPF neighbor stuck in <strong><code class="language-plaintext highlighter-rouge">Init</code></strong>. That state is not a generic adjacency failure. It has a precise meaning: the local router is receiving Hello packets from its peer, but those Hellos do not contain the local router’s <strong>Router ID</strong>. In practice, this is strong evidence that Hello communication is asymmetric.</p> <p>A common cause is control-plane firewalling. A firewall may permit the encrypted tunnel itself while dropping <strong>IP protocol 89</strong> before OSPF packets reach the local routing daemon. The result is deceptively clean: tunnel handshakes succeed, byte counters increment, yet no dynamic site routes appear.</p> <h2 id="co-technical-subject">Co-Technical Subject</h2> <p>The core subject is <strong>OSPF neighbor-state formation across Layer-3 overlay tunnels</strong>, with emphasis on <strong>control-plane firewall policy</strong>, asymmetric Hello exchange, dynamic prefix learning, and the diagnostic meaning of the <strong><code class="language-plaintext highlighter-rouge">Init</code></strong> state.</p> <p>The same principle applies whether the underlying transport is WireGuard, IPsec VTI, GRE protected by IPsec, or another routed overlay. Encryption provides reachability between tunnel endpoints; OSPF independently establishes a routing adjacency on top of that reachability.</p> <h2 id="theoretical-foundation">Theoretical Foundation</h2> <p>OSPFv2 is defined by <strong>RFC 2328, April 1998</strong>. It is a link-state interior gateway protocol in which neighboring routers first establish bidirectional communication, synchronize link-state databases, run the shortest-path-first algorithm, and install resulting routes into the routing information base.</p> <p>OSPF does not use TCP or UDP. IANA assigns it <strong>IP protocol number 89</strong>. For OSPFv2, <strong><code class="language-plaintext highlighter-rouge">224.0.0.5</code></strong> is the <strong>AllSPFRouters</strong> multicast address. Hello packets are sent to that address on network types that use multicast. <strong><code class="language-plaintext highlighter-rouge">224.0.0.6</code></strong> is <strong>AllDRouters</strong>, used where Designated Router and Backup Designated Router behavior applies.</p> <p>RFC 2328 gives the <strong><code class="language-plaintext highlighter-rouge">Init</code></strong> state a very specific semantic: a Hello has been received from the neighbor, but bidirectional communication has not yet been proven because the receiving router does not see its own Router ID in the neighbor’s Hello packet.</p> <p>That neighbor-list field is therefore an implicit return-path test. Router A does not merely prove that it can hear Router B. Router A also learns whether Router B has heard Router A.</p> <p>Once both routers see themselves listed in each other’s Hellos, the neighbor relationship reaches <strong><code class="language-plaintext highlighter-rouge">2-Way</code></strong>. On a point-to-point topology, adjacency formation can then progress through <strong><code class="language-plaintext highlighter-rouge">ExStart</code></strong>, <strong><code class="language-plaintext highlighter-rouge">Exchange</code></strong>, <strong><code class="language-plaintext highlighter-rouge">Loading</code></strong>, and finally <strong><code class="language-plaintext highlighter-rouge">Full</code></strong>, where link-state databases are synchronized.</p> <h2 id="mechanism-breakdown">Mechanism Breakdown</h2> <p>Consider two routers connected by an encrypted Layer-3 overlay. The tunnel endpoints can exchange encrypted packets successfully, so the overlay interface remains up and cryptographic handshakes continue.</p> <p>OSPF then operates inside that overlay:</p> <ul> <li>Each router enables OSPF on the tunnel interface.</li> <li>Each periodically sends a Hello packet using <strong>IP protocol 89</strong>.</li> <li>The receiving router validates parameters such as area, timers, authentication, and network type.</li> <li>The receiver records the peer Router ID and moves the neighbor from <strong><code class="language-plaintext highlighter-rouge">Down</code></strong> toward <strong><code class="language-plaintext highlighter-rouge">Init</code></strong>.</li> <li>Every Hello contains a list of neighbors from which valid Hellos have already been received.</li> <li>When Router A receives a Hello from Router B and sees Router A’s own Router ID in B’s neighbor list, two-way communication is proven.</li> <li>The routers then synchronize database state and exchange LSAs.</li> <li>Learned prefixes are installed as OSPF routes and become eligible for forwarding.</li> </ul> <p>Now insert a stateful firewall on Router B between the tunnel-facing security zone and the router’s local control plane. If that policy drops protocol 89 from Router A, the encrypted tunnel remains healthy because the firewall is not preventing the tunnel transport itself.</p> <p>Router A may still receive Router B’s Hellos. However, Router B never receives Router A’s Hellos, so Router B cannot place Router A’s Router ID into its outgoing Hello neighbor list. Router A therefore remains in <strong><code class="language-plaintext highlighter-rouge">Init</code></strong> indefinitely.</p> <p>This is exactly why <strong><code class="language-plaintext highlighter-rouge">Init</code></strong> is such a high-value troubleshooting signal: it narrows the problem toward asymmetric Hello visibility rather than generic route calculation, SPF failure, or data-plane forwarding.</p> <h2 id="industry-standards-reference">Industry Standards Reference</h2> <p>The authoritative behavior comes from <strong>RFC 2328, OSPF Version 2, Standards Track, April 1998</strong>. Section 10 defines the neighbor state machine and states that <strong><code class="language-plaintext highlighter-rouge">Init</code></strong> means a Hello has been seen but bidirectional communication has not been established. Section 9.5 describes Hello processing, including examination of the neighbor list. Appendix A defines <strong><code class="language-plaintext highlighter-rouge">224.0.0.5</code></strong>, <strong><code class="language-plaintext highlighter-rouge">224.0.0.6</code></strong>, and OSPF’s use of <strong>IP protocol 89</strong>.</p> <p>Reference: <a href="https://www.rfc-editor.org/rfc/rfc2328" rel="external nofollow noopener" target="_blank">RFC 2328 - OSPF Version 2</a></p> <p>Protocol-number authority is maintained by IANA. OSPF is registered as <strong>IP protocol 89</strong>, so firewall policy must match an IP protocol number rather than a TCP or UDP port.</p> <p>Reference: <a href="https://www.iana.org/assignments/protocol-numbers/protocol-numbers.xhtml" rel="external nofollow noopener" target="_blank">IANA Protocol Numbers</a></p> <p>A practical design implication follows directly from the standard: any firewall separating an OSPF-enabled overlay interface from the local routing process must explicitly allow the OSPF control-plane exchange required by that topology.</p> <h2 id="practical-examples-and-evidence">Practical Examples and Evidence</h2> <p>A generic FRR configuration for OSPF over a routed tunnel might resemble:</p> <div class="language-text highlighter-rouge"><div class="highlight"><pre class="highlight"><code>router ospf
+ ospf router-id 10.255.255.2
+ network 10.20.0.0/24 area 0.0.0.0
+
+interface wg0
+ ip ospf area 0.0.0.0
+ ip ospf network point-to-point
+</code></pre></div></div> <p>The first command to inspect is the neighbor state:</p> <div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>show ip ospf neighbor
+</code></pre></div></div> <p>A persistent state resembling this is highly significant:</p> <div class="language-text highlighter-rouge"><div class="highlight"><pre class="highlight"><code>Neighbor ID     Pri State    Dead Time Address        Interface
+10.255.255.1      1 Init/-   00:00:32  10.255.192.1  wg0
+</code></pre></div></div> <p>Packet capture should then verify both directions of protocol 89:</p> <div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>tcpdump <span class="nt">-ni</span> wg0 <span class="s1">'ip proto 89'</span>
+</code></pre></div></div> <p>If Hellos arrive from the peer but no locally generated Hellos are visible at the far end, inspect control-plane firewall rules rather than the tunnel encryption state.</p> <p>A standards-aligned firewall policy should narrowly allow OSPF from the expected tunnel address range to the routing control plane. In pseudo-policy form:</p> <div class="language-text highlighter-rouge"><div class="highlight"><pre class="highlight"><code>source:      tunnel-prefix
+protocol:    89
+source-zone: overlay-vpn
+destination: local-router
+action:      accept
+</code></pre></div></div> <p>After adjacency reaches <strong><code class="language-plaintext highlighter-rouge">Full</code></strong>, verify dynamic routes rather than relying only on tunnel counters:</p> <div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>ip route show proto ospf
+</code></pre></div></div> <p>The diagnostic evidence behind this learning pattern showed exactly this split. On one side, <a href="https://sfi.uidev.tools/?h=ad35263a" rel="external nofollow noopener" target="_blank"><code class="language-plaintext highlighter-rouge">"no OSPF adjacency ever forms"</code></a> while a local VPN-to-gateway firewall rule accumulated <strong>41,389 dropped packets</strong>. On the peer, <a href="https://sfi.uidev.tools/?h=946fb6fb" rel="external nofollow noopener" target="_blank"><code class="language-plaintext highlighter-rouge">"OSPF neighbors sit in Init/- on both WireGuard tunnels"</code></a>, independently demonstrating that Hellos were received in one direction but bidirectional discovery never completed.</p> <p>The peer-side control-plane firewall showed no corresponding drop, isolating the failure to one side of the adjacency.</p> <h2 id="key-technical-insights">Key Technical Insights</h2> <ul> <li> <strong>Tunnel health and routing health are separate state machines.</strong> A cryptographic handshake proves peer reachability, not successful dynamic route exchange.</li> <li> <strong><code class="language-plaintext highlighter-rouge">Init</code> is directional evidence.</strong> It means the local router hears the peer, but the peer has not demonstrated that it hears the local router.</li> <li> <strong>OSPF uses IP protocol 89, not a transport-layer port.</strong> Port-based ACL reasoning will miss it.</li> <li> <strong>Control-plane filtering can fail silently.</strong> Data traffic and tunnel keepalives may continue while routing packets are discarded before the routing daemon receives them.</li> <li> <strong>Missing routes can be a downstream symptom.</strong> If OSPF never reaches <strong><code class="language-plaintext highlighter-rouge">Full</code></strong>, the absence of remote prefixes is expected; the route generator may be functioning correctly.</li> <li> <strong>Static routes can conceal the real fault.</strong> They may restore connectivity while bypassing the failed routing protocol, making the overlay appear fixed while redundancy and convergence remain broken.</li> <li> <strong>Route preference is implementation-specific.</strong> Many platforms prefer static routes over OSPF by default, so temporary static routes should be removed once dynamic adjacency is restored if they would otherwise shadow OSPF-learned paths.</li> <li> <strong>Bidirectional packet capture is more valuable than a single interface status.</strong> Comparing Hellos on both tunnel endpoints can distinguish firewall asymmetry from timer mismatch, authentication failure, or database-exchange problems.</li> </ul> <h2 id="prevention-strategies-and-takeaways">Prevention Strategies and Takeaways</h2> <p>Treat routing protocols over overlays as <strong>control-plane dependencies</strong>, not as incidental tunnel traffic.</p> <ul> <li>Define explicit firewall policy for routing protocols terminating on the router itself.</li> <li>Scope OSPF permits to expected tunnel prefixes and protocol 89 rather than broadly allowing the entire VPN zone.</li> <li>Monitor both overlay state and routing adjacency state. A healthy tunnel with no <strong><code class="language-plaintext highlighter-rouge">Full</code></strong> OSPF neighbor should be considered degraded.</li> <li>Alert on long-lived <strong><code class="language-plaintext highlighter-rouge">Init</code></strong>, <strong><code class="language-plaintext highlighter-rouge">ExStart</code></strong>, or <strong><code class="language-plaintext highlighter-rouge">Exchange</code></strong> states because each points to a different class of failure.</li> <li>Validate learned routes after adjacency formation with the routing table and LSDB, not only with tunnel byte counters.</li> <li>Remove temporary static routes after dynamic routing is restored when those routes would override OSPF and defeat path failover.</li> <li>When diagnosing asymmetric adjacency, inspect the firewall path from the tunnel interface to the <strong>local routing process</strong>, not only forwarding rules between LAN and VPN zones.</li> </ul> <p>The broader lesson is architectural: an encrypted overlay supplies a secure packet path, while OSPF supplies topology knowledge. When a neighbor is stuck in <strong><code class="language-plaintext highlighter-rouge">Init</code></strong>, the protocol is already telling you that the return control-plane path is missing. Reading that state correctly can turn a vague “VPN is up but routing is broken” incident into a precise investigation of asymmetric Hello delivery.</p> </div> </article> <br> <hr> <br> <h2 class="text-3xl font-semibold mb-4 mt-12">Enjoy Reading This Article?</h2> <p class="mb-2">Here are some more articles you might like to read next:</p> <ul class="list-disc pl-7 my-3 space-y-2 marker:text-[var(--global-theme-color)]"> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/ospf-tunnel-source-routing/">When OSPF Routes Work but Gateway-Originated Tunnel Traffic Fails</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/one-way-ipsec-esp-blackholes/">When IKE Is Healthy but IPsec Is Broken: Diagnosing One-Way ESP Black Holes</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/atomic-config-validation/">Atomic Configuration Validation and Control-Plane Drift</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/transient-network-outage-isolation/">Diagnosing Transient Network Outages with Fault-Domain Isolation</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/sfp-plus-link-flaps/">When 10GBASE-T SFP+ Modules Destabilize Ethernet Links</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/ipsec-phase2-selectors/">IPsec Phase 2 Traffic Selectors and Partial Tunnel Failures</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/nut-calibration-state-failure/">When UPS Calibration State Becomes a Shutdown Hazard in Network UPS Tools</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/diagnosing-wan-failures/">Diagnosing WAN Failures Beyond Physical Link State</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/linux-critical-thermal-shutdowns/">Diagnosing Linux Critical Thermal Shutdowns</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/wireguard-site-to-site-split-tunneling/">WireGuard Site-to-Site Routing with Selective Split Tunneling</a> </li> </ul> </div> </div> <footer class="sticky-bottom mt-5" role="contentinfo"> <div class="container"> © Copyright 2026 Harsh Verma. Built with <a href="https://jekyllrb.com/" target="_blank" rel="external nofollow noopener">Jekyll</a> and <a href="https://github.com/alshedivat/al-folio" target="_blank" rel="external nofollow noopener">al-folio</a>. Hosted on GitHub Pages. </div> </footer> <script>
+  window.alFolio = {
+    compatBootstrap: false
+  };
+</script> <script src="/assets/js/nav-toggle.js?v=141bd79a73ebc0f0b6ea58e440ae79fc"></script> <script defer src="https://cdn.jsdelivr.net/npm/masonry-layout@4.2.2/dist/masonry.pkgd.min.js" integrity="sha256-Nn1q/fx0H7SNLZMQ5Hw5JLaTRZp0yILA/FRexe19VdI=" crossorigin="anonymous"></script> <script defer src="https://cdn.jsdelivr.net/npm/imagesloaded@5.0.0/imagesloaded.pkgd.min.js" integrity="sha256-htrLFfZJ6v5udOG+3kNLINIKh2gvoKqwEhHYfTTMICc=" crossorigin="anonymous"></script> <script defer src="/assets/js/masonry.js?v=e49affc7bd2646f6acdad1dbe02c2359" type="text/javascript"></script> <script defer type="text/javascript" id="MathJax-script" src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-mml-chtml.js" integrity="sha256-MASABpB4tYktI2Oitl4t+78w/lyA+D7b/s9GEP0JOGI=" crossorigin="anonymous"></script> <script src="/assets/al_math/js/mathjax-setup.js"></script> <script src="/assets/js/tooltips-setup.js?v=fe487e99db6c43751e6e7bdb2d6a0611"></script> <script src="/assets/js/no_defer.js?v=53b1b1a645525975c963ce8bf8bfefcf"></script> <script defer src="/assets/js/common.js?v=87baac90f765f2f3362dcf6aaf312a8a"></script> <script defer src="/assets/js/copy_code.js?v=c8a01c11a92744d44b093fc3bda915df" type="text/javascript"></script> <script defer src="/assets/js/jupyter_new_tab.js?v=896d254890d9b47f0281f63bfccf0dee"></script> <script async src="https://d1bxh8uas1mnw7.cloudfront.net/assets/embed.js"></script> <script async src="https://badge.dimensions.ai/badge.js"></script> <script defer src="https://cdn.jsdelivr.net/npm/medium-zoom@1.1.0/dist/medium-zoom.min.js" integrity="sha256-ZgMyDAIYDYGxbcpJcfUnYwNevG/xi9OHKaR/8GK+jWc=" crossorigin="anonymous"></script> <script defer src="/assets/al_img_tools/js/zoom.js"></script> <script defer src="/assets/js/progress-bar.js?v=499464c5c63ced6cf7ad62509f1e2610" type="text/javascript"></script> <script src="https://cdn.jsdelivr.net/npm/vanilla-back-to-top@7.2.1/dist/vanilla-back-to-top.min.js" integrity="sha256-uMJJ3EoTyfRBoTbR+lrfu1uRQ87RZG8AR3cVNuQVeFg=" crossorigin="anonymous"></script> <script>
+    addBackToTop();
+  </script> <script type="module" src="/assets/al_search/js/search/ninja-keys.min.js"></script> <ninja-keys hidebreadcrumbs noautoloadmdicons placeholder="Type to start searching"></ninja-keys> <script src="/assets/al_search/js/search-setup.js"></script> <script>
+// get the ninja-keys element
+const ninja = document.querySelector('ninja-keys');
+
+// add the home and posts menu items
+ninja.data = [{
+    id: "nav-about",
+    title: "About",
+    section: "Navigation",
+    handler: () => {
+      window.location.href = "/";
+    },
+  },{id: "nav-projects",
+          title: "Projects",
+          description: "",
+          section: "Navigation",
+          handler: () => {
+            window.location.href = "/#projects";
+          },
+        },{id: "nav-learning-hub",
+          title: "Learning Hub",
+          description: "Practical notes on servers, networking, Linux, security, and infrastructure automation.",
+          section: "Navigation",
+          handler: () => {
+            window.location.href = "/learn/index.html";
+          },
+        },{id: "nav-certifications",
+          title: "Certifications",
+          description: "Professional certifications across networking, cybersecurity, and infrastructure.",
+          section: "Navigation",
+          handler: () => {
+            window.location.href = "/certs/";
+          },
+        },{id: "post-diagnosing-ospf-init-state-across-encrypted-overlay-tunnels",
+        
+          title: "Diagnosing OSPF Init State Across Encrypted Overlay Tunnels",
+        
+        description: "How asymmetric OSPF Hello filtering can leave encrypted tunnels healthy while dynamic route exchange silently fails.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/ospf-init-state-firewall/";
+          
+        },
+      },{id: "post-when-ospf-routes-work-but-gateway-originated-tunnel-traffic-fails",
+        
+          title: "When OSPF Routes Work but Gateway-Originated Tunnel Traffic Fails",
+        
+        description: "Why multi-hop OSPF over encrypted tunnels can forward LAN traffic successfully while gateway-originated flows fail because tunnel /32 source addresses lack a return route.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/ospf-tunnel-source-routing/";
+          
+        },
+      },{id: "post-when-ike-is-healthy-but-ipsec-is-broken-diagnosing-one-way-esp-black-holes",
+        
+          title: "When IKE Is Healthy but IPsec Is Broken: Diagnosing One-Way ESP Black Holes...",
+        
+        description: "Why an IPsec tunnel can remain established at the IKE control plane while ESP traffic silently fails in one direction, and how to diagnose the split correctly.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/one-way-ipsec-esp-blackholes/";
+          
+        },
+      },{id: "post-atomic-configuration-validation-and-control-plane-drift",
+        
+          title: "Atomic Configuration Validation and Control-Plane Drift",
+        
+        description: "How schema validation, transactional configuration pushes, and datastore drift can cause a single invalid field to block an entire network-device configuration.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/atomic-config-validation/";
+          
+        },
+      },{id: "post-diagnosing-transient-network-outages-with-fault-domain-isolation",
+        
+          title: "Diagnosing Transient Network Outages with Fault-Domain Isolation",
+        
+        description: "A vendor-neutral method for separating gateway, switching, wireless authentication, and logging failures during short-lived network disruptions.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/transient-network-outage-isolation/";
+          
+        },
+      },{id: "post-when-10gbase-t-sfp-modules-destabilize-ethernet-links",
+        
+          title: "When 10GBASE-T SFP+ Modules Destabilize Ethernet Links",
+        
+        description: "How SFP+ module identification, PHY mode selection, and repeated link-state transitions can collapse TCP throughput even when an interface nominally reports 10 Gb/s.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/sfp-plus-link-flaps/";
+          
+        },
+      },{id: "post-ipsec-phase-2-traffic-selectors-and-partial-tunnel-failures",
+        
+          title: "IPsec Phase 2 Traffic Selectors and Partial Tunnel Failures",
+        
+        description: "Why an IPsec tunnel can remain established while one subnet pair fails because routing state and negotiated traffic selectors are separate control-plane objects.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/ipsec-phase2-selectors/";
+          
+        },
+      },{id: "post-when-ups-calibration-state-becomes-a-shutdown-hazard-in-network-ups-tools",
+        
+          title: "When UPS Calibration State Becomes a Shutdown Hazard in Network UPS Tools",
+        
+        description: "A deep analysis of how stale NUT calibration state can turn a brief monitoring outage into an immediate infrastructure shutdown.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/nut-calibration-state-failure/";
+          
+        },
+      },{id: "post-diagnosing-wan-failures-beyond-physical-link-state",
+        
+          title: "Diagnosing WAN Failures Beyond Physical Link State",
+        
+        description: "A layered method for distinguishing Ethernet carrier loss, upstream path degradation, and application-level failure in redundant WAN designs.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/diagnosing-wan-failures/";
+          
+        },
+      },{id: "post-diagnosing-linux-critical-thermal-shutdowns",
+        
+          title: "Diagnosing Linux Critical Thermal Shutdowns",
+        
+        description: "A practical framework for distinguishing genuine silicon overheating from faulty thermal telemetry when Linux initiates a protective shutdown.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/linux-critical-thermal-shutdowns/";
+          
+        },
+      },{id: "post-wireguard-site-to-site-routing-with-selective-split-tunneling",
+        
+          title: "WireGuard Site-to-Site Routing with Selective Split Tunneling",
+        
+        description: "How WireGuard cryptokey routing, policy-based forwarding, firewall rules, NAT, and return paths combine in a selective site-to-site VPN design.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/wireguard-site-to-site-split-tunneling/";
+          
+        },
+      },{id: "post-building-and-transferring-docker-images-to-air-gapped-debian-systems",
+        
+          title: "Building and Transferring Docker Images to Air-Gapped Debian Systems",
+        
+        description: "A practical Debian-focused guide to Docker images, containers, offline Docker installation, and transferring workloads into air-gapped environments.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/docker-images-containers-air-gapped-debian/";
+          
+        },
+      },{id: "post-configuring-git-and-github-ssh-access-safely",
+        
+          title: "Configuring Git and GitHub SSH Access Safely",
+        
+        description: "A practical guide to configuring Git identity, setting up SSH authentication with GitHub, managing remotes, and pushing changes safely.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/configuring-git-github-ssh-access-safely/";
+          
+        },
+      },{id: "post-welcome-to-the-learning-hub",
+        
+          title: "Welcome to the Learning Hub",
+        
+        description: "A home for practical notes on infrastructure, networking, Linux, and automation.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/welcome-to-the-learning-hub/";
+          
+        },
+      },{
+        id: 'social-email',
+        title: 'email',
+        section: 'Socials',
+        handler: () => {
+          window.open("mailto:%68%61%72%73%68%76%65%72%6D%61%63%35@%67%6D%61%69%6C.%63%6F%6D", "_blank");
+        },
+      },{
+        id: 'social-github',
+        title: 'GitHub',
+        section: 'Socials',
+        handler: () => {
+          window.open("https://github.com/harshvermac5", "_blank");
+        },
+      },{
+        id: 'social-linkedin',
+        title: 'LinkedIn',
+        section: 'Socials',
+        handler: () => {
+          window.open("https://www.linkedin.com/in/harshvermac5", "_blank");
+        },
+      },{
+        id: 'social-rss',
+        title: 'RSS Feed',
+        section: 'Socials',
+        handler: () => {
+          window.open("/feed.xml", "_blank");
+        },
+      },{
+      id: 'light-theme',
+      title: 'Change theme to light',
+      description: 'Change the theme of the site to Light',
+      section: 'Theme',
+      handler: () => {
+        setThemeSetting("light");
+      },
+    },
+    {
+      id: 'dark-theme',
+      title: 'Change theme to dark',
+      description: 'Change the theme of the site to Dark',
+      section: 'Theme',
+      handler: () => {
+        setThemeSetting("dark");
+      },
+    },
+    {
+      id: 'system-theme',
+      title: 'Use system default theme',
+      description: 'Change the theme of the site to System Default',
+      section: 'Theme',
+      handler: () => {
+        setThemeSetting("system");
+      },
+    },];
+
+</script> <script src="/assets/al_search/js/shortcut-key.js"></script> </body> </html>

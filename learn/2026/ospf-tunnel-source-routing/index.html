@@ -1,0 +1,278 @@
+<!DOCTYPE html> <html lang="en"> <head> <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"> <meta charset="utf-8"> <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no"> <meta http-equiv="X-UA-Compatible" content="IE=edge"> <title> When OSPF Routes Work but Gateway-Originated Tunnel Traffic Fails | Harsh Verma </title> <meta name="author" content="Harsh Verma"> <meta name="description" content="Why multi-hop OSPF over encrypted tunnels can forward LAN traffic successfully while gateway-originated flows fail because tunnel /32 source addresses lack a return route."> <meta name="keywords" content="server engineer, network engineer, linux, data center, infrastructure automation, portfolio"> <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https:; style-src 'self' 'unsafe-inline' https:; img-src 'self' data: https:; font-src 'self' data: https:; media-src 'self' https:; frame-src 'self' https:; connect-src 'self' https:;"> <style>
+  :root {
+    --max-content-width: 1100px;
+  }
+</style> <link rel="stylesheet" href="/assets/css/tailwind.css?v=50c64c15cbb9fd1ce6056fdb8bcb4b62"> <link defer rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.2.0/css/all.min.css" integrity="sha256-MVopmdyC2tYTiJ8wlktf0uh0v4NgT+vNdyVFepi7Q0c=" crossorigin="anonymous"> <link defer rel="stylesheet" href="https://cdn.jsdelivr.net/npm/academicons@1.9.5/css/academicons.min.css" integrity="sha256-SzrCOBJbGVFMahewkgjwnApaV2+av1DwMAA+/QGLyZw=" crossorigin="anonymous"> <link defer rel="stylesheet" href="https://cdn.jsdelivr.net/npm/scholar-icons@1.0.3/css/scholar-icons.css" integrity="sha256-VY3hHVj/hNX3fYG6wtbA6TcKJQl7+FthzGSyIB64klY=" crossorigin="anonymous"> <link defer rel="stylesheet" type="text/css" href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700|Roboto+Slab:100,300,400,500,700|Material+Icons&amp;display=swap"> <link defer rel="stylesheet" href="/assets/css/jekyll-pygments-themes-github.css?v=591dab5a4e56573bf4ef7fd332894c99" media="" id="highlight_theme_light"> <link rel="shortcut icon" href="data:image/svg+xml,&lt;svg%20xmlns=%22http://www.w3.org/2000/svg%22%20viewBox=%220%200%20100%20100%22&gt;&lt;text%20y=%22.9em%22%20font-size=%2290%22&gt;%F0%9F%96%A5%EF%B8%8F&lt;/text&gt;&lt;/svg&gt;"> <link rel="stylesheet" href="/assets/css/main.css?v=3116ba77db9ee1581d05bb3e86fbf7f1"> <link rel="canonical" href="https://harshvermac5.github.io/learn/2026/ospf-tunnel-source-routing/"> <script src="/assets/js/theme.js?v=5286c3e4c334d0ecb8fc0c40ff4fa7ec"></script> <link defer rel="stylesheet" href="/assets/css/jekyll-pygments-themes-native.css?v=5847e5ed4a4568527aa6cfab446049ca" media="none" id="highlight_theme_dark"> <script>
+    initTheme();
+  </script> </head> <body class="fixed-top-nav sticky-bottom-footer"> <header> <nav id="navbar" class="navbar navbar-light navbar-expand-sm fixed-top" role="navigation"> <div class="container"> <a class="navbar-brand title font-weight-lighter" href="/"> Harsh Verma </a> <button class="navbar-toggler collapsed navbar-toggler-main" type="button" data-nav-toggle="navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation"> <span class="sr-only">Toggle navigation</span> <span class="icon-bar top-bar"></span> <span class="icon-bar middle-bar"></span> <span class="icon-bar bottom-bar"></span> </button> <div class="collapse navbar-collapse navbar-collapse-main" id="navbarNav"> <ul class="navbar-nav navbar-menu-list flex-nowrap"> <li class="nav-item "> <a class="nav-link" href="/">About </a> </li> <li class="nav-item "> <a class="nav-link" href="/#projects">Projects </a> </li> <li class="nav-item active"> <a class="nav-link" href="/learn/index.html">Learning Hub </a> </li> <li class="nav-item "> <a class="nav-link" href="/certs/">Certifications </a> </li> <li class="nav-item"> <button id="search-toggle" type="button" title="Search" aria-label="Open search"> <span class="nav-link">ctrl k <i class="fa-solid fa-magnifying-glass"></i></span> </button> </li> <li class="toggle-container"> <button id="light-toggle" type="button" title="Change theme" aria-label="Change color theme"> <i class="fa-half-sun-moon" id="light-toggle-system"></i> <i class="fa-solid fa-moon" id="light-toggle-dark"></i> <i class="fa-solid fa-sun" id="light-toggle-light"></i> </button> </li> </ul> </div> </div> </nav> <progress id="progress" value="0"> <div class="progress-container"> <span class="progress-bar"></span> </div> </progress> </header> <div class="container mt-5" role="main"> <div class="post"> <header class="post-header"> <h1 class="post-title">When OSPF Routes Work but Gateway-Originated Tunnel Traffic Fails</h1> <p class="post-meta"> Created on September 04, 2026 </p> <p class="post-tags"> <i class="fa-solid fa-calendar fa-sm"></i> 2026   ·   <i class="fa-solid fa-hashtag fa-sm"></i> ospf   <i class="fa-solid fa-hashtag fa-sm"></i> wireguard   <i class="fa-solid fa-hashtag fa-sm"></i> ecmp   <i class="fa-solid fa-hashtag fa-sm"></i> routing   <i class="fa-solid fa-hashtag fa-sm"></i> vpn   ·   <i class="fa-solid fa-tag fa-sm"></i> Networking </p> </header> <article class="post-content"> <div id="markdown-content"> <h2 id="problem-statement-or-learning-objective">Problem Statement or Learning Objective</h2> <p>A routed overlay can appear healthy at every obvious layer: encrypted tunnels are established, OSPF adjacencies are <strong>Full</strong>, remote LAN prefixes are installed, and ordinary host-to-host traffic crosses the fabric successfully. Yet a <code class="language-plaintext highlighter-rouge">ping</code>, DNS query, LDAP connection, or other flow generated by the gateway itself may fail across the same path.</p> <p>The key principle is that <strong>reachability to a destination prefix does not imply return reachability to the source address selected by the originating router</strong>. This matters especially in multi-hop tunnel fabrics where each tunnel interface uses a <code class="language-plaintext highlighter-rouge">/32</code> transfer address that is locally significant but not redistributed into the interior routing protocol.</p> <p>The resulting failure is easy to misdiagnose as broken OSPF, ECMP, firewalling, or tunnel transit. In reality, the forwarding plane may be working correctly for LAN prefixes while gateway-originated traffic blackholes because its source address is outside the routed overlay address set.</p> <h2 id="co-technical-subject">Co-Technical Subject</h2> <p><strong>OSPF route propagation over Layer-3 encrypted overlays, ECMP path construction, tunnel transfer-address reachability, and IPv4 source-address selection.</strong></p> <p>The design pattern applies broadly to routed VPNs, SD-WAN overlays, GRE/IPsec fabrics, WireGuard meshes, and Linux-based routing systems where point-to-point tunnel interfaces use host addresses.</p> <h2 id="theoretical-foundation">Theoretical Foundation</h2> <p>OSPFv2 is defined by <strong>RFC 2328, STD 54, April 1998</strong>. The protocol builds a link-state database and runs a shortest-path calculation to determine reachable destinations and next hops. The specification explicitly states that <a href="https://www.rfc-editor.org/rfc/rfc2328.html" rel="external nofollow noopener" target="_blank">“OSPF is a link-state protocol.”</a> It also supports multiple equal-cost next hops for the same destination.</p> <p>This is important because OSPF reasons about <strong>advertised topology and prefixes</strong>. If a remote LAN such as <code class="language-plaintext highlighter-rouge">10.20.0.0/24</code> is advertised, OSPF can install a valid path to it even if the router interface address used to source locally generated traffic is not advertised anywhere.</p> <p>CIDR semantics are defined in <strong>RFC 4632, BCP 122, August 2006</strong>. A <code class="language-plaintext highlighter-rouge">/32</code> represents one IPv4 address and is explicitly described as a <a href="https://www.rfc-editor.org/rfc/rfc4632.html" rel="external nofollow noopener" target="_blank">“host route”</a>. Assigning <code class="language-plaintext highlighter-rouge">10.255.0.1/32</code> to a tunnel interface therefore does not create reachability to the wider <code class="language-plaintext highlighter-rouge">10.255.0.0/16</code> space. Unless a covering prefix or the exact <code class="language-plaintext highlighter-rouge">/32</code> is installed elsewhere, remote routers have no route back to that address.</p> <p>IPv4 router behavior is further described by <strong>RFC 1812, June 1995</strong>. For locally generated traffic, <a href="https://www.rfc-editor.org/rfc/rfc1812.html" rel="external nofollow noopener" target="_blank">“the IP source address MUST be one of its own IP addresses”</a>. Which local address is selected is implementation-dependent, but routing systems commonly prefer an address associated with the selected egress interface unless policy, binding, or explicit source selection overrides it.</p> <p>WireGuard itself is not standardized through an IETF RFC. Its official protocol description defines <strong>cryptokey routing</strong>, where peer identity is associated with allowed IP prefixes. The technical paper explains that <a href="https://www.wireguard.com/papers/wireguard.pdf" rel="external nofollow noopener" target="_blank">“When an outgoing packet is being transmitted on a WireGuard interface, this table is consulted”</a>. This means encrypted tunnel reachability and IP routing remain distinct control decisions: the kernel must choose a route and source address, while WireGuard must also map the packet to an eligible peer.</p> <h2 id="mechanism-breakdown">Mechanism Breakdown</h2> <p>Consider two hub routers, <strong>Hub-A</strong> and <strong>Hub-B</strong>, connected indirectly through several spokes. Each spoke maintains encrypted tunnels to both hubs. OSPF runs across every tunnel.</p> <p>The overlay may advertise LAN prefixes such as:</p> <div class="language-text highlighter-rouge"><div class="highlight"><pre class="highlight"><code>Hub-A LAN: 10.10.0.0/24
+Hub-B LAN: 10.20.0.0/24
+Tunnel transfer space: 10.255.0.0/16
+</code></pre></div></div> <p>Each tunnel interface is addressed with a host route:</p> <div class="language-text highlighter-rouge"><div class="highlight"><pre class="highlight"><code>Hub-A wg1: 10.255.0.1/32
+Spoke-1 wgA: 10.255.0.2/32
+Hub-B wg1: 10.255.0.61/32
+Spoke-1 wgB: 10.255.0.62/32
+</code></pre></div></div> <p>OSPF advertises <code class="language-plaintext highlighter-rouge">10.10.0.0/24</code> and <code class="language-plaintext highlighter-rouge">10.20.0.0/24</code>, but does <strong>not</strong> advertise the tunnel transfer <code class="language-plaintext highlighter-rouge">/32</code>s or a covering <code class="language-plaintext highlighter-rouge">10.255.0.0/16</code> route.</p> <p>For LAN-to-LAN forwarding, the sequence is straightforward:</p> <ul> <li>Host <code class="language-plaintext highlighter-rouge">10.10.0.25</code> sends traffic to <code class="language-plaintext highlighter-rouge">10.20.0.40</code>.</li> <li>Hub-A performs a destination lookup for <code class="language-plaintext highlighter-rouge">10.20.0.40</code>.</li> <li>OSPF provides one or more equal-cost next hops through spokes.</li> <li>A spoke receives the packet and forwards it toward Hub-B.</li> <li>Hub-B delivers it to <code class="language-plaintext highlighter-rouge">10.20.0.40</code>.</li> <li>The return packet is addressed to <code class="language-plaintext highlighter-rouge">10.10.0.25</code>, which is also an advertised LAN destination.</li> <li>OSPF therefore provides a valid return path.</li> </ul> <p>Now compare a gateway-originated probe:</p> <div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>ping 10.20.0.1
+</code></pre></div></div> <p>The destination route may still point through <code class="language-plaintext highlighter-rouge">wg1</code>, but the router may select <code class="language-plaintext highlighter-rouge">10.255.0.1</code> as the source because that address belongs to the chosen egress interface.</p> <p>The forward packet can cross the overlay because every intermediate router has a route to <code class="language-plaintext highlighter-rouge">10.20.0.0/24</code>. The reply, however, is destined for <code class="language-plaintext highlighter-rouge">10.255.0.1</code>. If Hub-B has only its directly connected tunnel <code class="language-plaintext highlighter-rouge">/32</code>s and no route covering <code class="language-plaintext highlighter-rouge">10.255.0.1</code>, the return path terminates at Hub-B. The request was routable; the response is not.</p> <p>This creates a classic <strong>asymmetric reachability</strong> condition without requiring asymmetric forwarding for ordinary LAN traffic.</p> <h2 id="industry-standards-reference">Industry Standards Reference</h2> <p>The relevant standards and architectural references are:</p> <ul> <li> <strong>RFC 2328, OSPF Version 2, STD 54, 1998</strong> defines OSPF link-state operation, shortest-path calculation, routing-table construction, and equal-cost multipath behavior.</li> <li> <strong>RFC 4632, Classless Inter-domain Routing, BCP 122, 2006</strong> defines classless IPv4 prefix semantics and identifies <code class="language-plaintext highlighter-rouge">/32</code> as a single-address host route.</li> <li> <strong>RFC 1812, Requirements for IP Version 4 Routers, 1995</strong> defines IPv4 router forwarding and requirements for router-originated datagrams.</li> <li> <strong>RFC 1918, Address Allocation for Private Internets, BCP 5, 1996</strong> reserves <code class="language-plaintext highlighter-rouge">10.0.0.0/8</code>, <code class="language-plaintext highlighter-rouge">172.16.0.0/12</code>, and <code class="language-plaintext highlighter-rouge">192.168.0.0/16</code> for private internetworking. Private addressing does not imply automatic internal reachability; routing information is still required.</li> <li> <strong>WireGuard: Next Generation Kernel Network Tunnel</strong>, official protocol whitepaper, documents cryptokey routing and the mapping between peers and allowed IP prefixes.</li> </ul> <p>These references describe separate layers of responsibility: OSPF determines reachability to advertised IP destinations, CIDR defines prefix scope, the IP stack chooses valid local source addresses, and the tunnel protocol decides which peer may carry the resulting packet.</p> <h2 id="practical-examples-and-evidence">Practical Examples and Evidence</h2> <p>A healthy routing table can still expose the problem:</p> <div class="language-text highlighter-rouge"><div class="highlight"><pre class="highlight"><code>10.20.0.0/24 proto ospf metric 60
+    nexthop dev wg1
+    nexthop dev wg2
+    nexthop dev wg3
+    nexthop dev wg4
+</code></pre></div></div> <p>The remote LAN is reachable through ECMP. Now inspect the transfer space:</p> <div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>ip route show 10.255.0.0/16
+</code></pre></div></div> <p>A problematic system may return only directly connected host routes:</p> <div class="language-text highlighter-rouge"><div class="highlight"><pre class="highlight"><code>10.255.0.2 dev wg1 scope link
+10.255.0.4 dev wg2 scope link
+10.255.0.6 dev wg3 scope link
+</code></pre></div></div> <p>There is no route to the remote hub transfer address.</p> <p>On Linux, <code class="language-plaintext highlighter-rouge">ip route get</code> is especially useful because it exposes both the chosen egress and preferred source:</p> <div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>ip route get 10.20.0.1
+</code></pre></div></div> <p>Example result:</p> <div class="language-text highlighter-rouge"><div class="highlight"><pre class="highlight"><code>10.20.0.1 via 10.255.0.2 dev wg1 src 10.255.0.1
+</code></pre></div></div> <p>That <code class="language-plaintext highlighter-rouge">src 10.255.0.1</code> is the critical clue. A destination route exists, but the selected source is not globally reachable across the overlay.</p> <p>Compare with an explicitly LAN-sourced test:</p> <div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>ping <span class="nt">-I</span> 10.10.0.1 10.20.0.1
+</code></pre></div></div> <p>If the LAN-sourced probe succeeds while the default gateway-originated probe fails, the evidence strongly isolates the issue to <strong>source-address reachability</strong>, not OSPF adjacency, tunnel establishment, or generic transit forwarding.</p> <p>Conntrack provides another useful discriminator. Replied LAN flows prove end-to-end transit:</p> <div class="language-text highlighter-rouge"><div class="highlight"><pre class="highlight"><code>tcp src=10.10.0.25 dst=10.20.0.40 ... ESTABLISHED
+</code></pre></div></div> <p>Unreplied router-sourced flows expose the missing return path:</p> <div class="language-text highlighter-rouge"><div class="highlight"><pre class="highlight"><code>icmp src=10.255.0.1 dst=10.20.0.1 ... UNREPLIED
+</code></pre></div></div> <h2 id="key-technical-insights">Key Technical Insights</h2> <ul> <li> <strong>Control-plane health is not end-to-end application reachability.</strong> Full OSPF adjacencies and installed routes prove topology knowledge, not bidirectional reachability for every possible source address.</li> <li> <strong>ECMP is not inherently the fault.</strong> RFC 2328 permits multiple equal-cost routes. If LAN traffic succeeds through those paths, ECMP itself is functioning.</li> <li> <strong>Tunnel interface addresses are infrastructure prefixes.</strong> If routers or services source traffic from them, those addresses become part of the routing design whether or not administrators intended them to be externally visible.</li> <li> <strong>A <code class="language-plaintext highlighter-rouge">/32</code> is maximally specific.</strong> It provides no implicit reachability to neighboring addresses. Remote routers need the exact host route or a covering prefix.</li> <li> <strong>Gateway diagnostics can be misleading.</strong> A failed router CLI <code class="language-plaintext highlighter-rouge">ping</code> may test a different source-address class than production LAN traffic.</li> <li> <strong>Tunnel security and routing are independent.</strong> A successful encrypted handshake proves peer cryptographic reachability, not that every inner source and destination has a valid routed return path.</li> </ul> <h2 id="prevention-strategies-and-takeaways">Prevention Strategies and Takeaways</h2> <p>Design routed overlays so that every address class that may legitimately source traffic has an intentional return path.</p> <ul> <li>Advertise tunnel transfer addresses when gateway-originated services must traverse multiple overlay hops, preferably through a summarized infrastructure prefix where the topology permits it.</li> <li>Alternatively, use loopback addresses as stable router service sources and advertise those loopbacks through the IGP.</li> <li>Bind operational probes and gateway services to a routed LAN or loopback source rather than relying on automatic interface-source selection.</li> <li>Validate both directions with <code class="language-plaintext highlighter-rouge">ip route get</code>, routing-table inspection, packet capture, and conntrack rather than treating <code class="language-plaintext highlighter-rouge">ping</code> success or failure as standalone proof.</li> <li>In dual-hub designs, consider direct hub-to-hub adjacencies when deterministic inter-hub connectivity is required. This reduces dependence on spoke transit and simplifies failure domains.</li> <li>Keep infrastructure prefix policy explicit. If transfer networks must remain non-routed, document that gateway-originated traffic cannot safely use them across multi-hop paths.</li> </ul> <p>The central lesson is simple but powerful: <strong>routing protocols advertise destinations, while successful conversations require the return network to understand the selected source</strong>. In encrypted multi-hop fabrics, separating those two questions is often the difference between chasing a phantom tunnel failure and identifying the actual routing defect.</p> </div> </article> <br> <hr> <br> <h2 class="text-3xl font-semibold mb-4 mt-12">Enjoy Reading This Article?</h2> <p class="mb-2">Here are some more articles you might like to read next:</p> <ul class="list-disc pl-7 my-3 space-y-2 marker:text-[var(--global-theme-color)]"> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/ospf-init-state-firewall/">Diagnosing OSPF Init State Across Encrypted Overlay Tunnels</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/one-way-ipsec-esp-blackholes/">When IKE Is Healthy but IPsec Is Broken: Diagnosing One-Way ESP Black Holes</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/atomic-config-validation/">Atomic Configuration Validation and Control-Plane Drift</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/transient-network-outage-isolation/">Diagnosing Transient Network Outages with Fault-Domain Isolation</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/sfp-plus-link-flaps/">When 10GBASE-T SFP+ Modules Destabilize Ethernet Links</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/ipsec-phase2-selectors/">IPsec Phase 2 Traffic Selectors and Partial Tunnel Failures</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/nut-calibration-state-failure/">When UPS Calibration State Becomes a Shutdown Hazard in Network UPS Tools</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/diagnosing-wan-failures/">Diagnosing WAN Failures Beyond Physical Link State</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/linux-critical-thermal-shutdowns/">Diagnosing Linux Critical Thermal Shutdowns</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/wireguard-site-to-site-split-tunneling/">WireGuard Site-to-Site Routing with Selective Split Tunneling</a> </li> </ul> </div> </div> <footer class="sticky-bottom mt-5" role="contentinfo"> <div class="container"> © Copyright 2026 Harsh Verma. Built with <a href="https://jekyllrb.com/" target="_blank" rel="external nofollow noopener">Jekyll</a> and <a href="https://github.com/alshedivat/al-folio" target="_blank" rel="external nofollow noopener">al-folio</a>. Hosted on GitHub Pages. </div> </footer> <script>
+  window.alFolio = {
+    compatBootstrap: false
+  };
+</script> <script src="/assets/js/nav-toggle.js?v=141bd79a73ebc0f0b6ea58e440ae79fc"></script> <script defer src="https://cdn.jsdelivr.net/npm/masonry-layout@4.2.2/dist/masonry.pkgd.min.js" integrity="sha256-Nn1q/fx0H7SNLZMQ5Hw5JLaTRZp0yILA/FRexe19VdI=" crossorigin="anonymous"></script> <script defer src="https://cdn.jsdelivr.net/npm/imagesloaded@5.0.0/imagesloaded.pkgd.min.js" integrity="sha256-htrLFfZJ6v5udOG+3kNLINIKh2gvoKqwEhHYfTTMICc=" crossorigin="anonymous"></script> <script defer src="/assets/js/masonry.js?v=e49affc7bd2646f6acdad1dbe02c2359" type="text/javascript"></script> <script defer type="text/javascript" id="MathJax-script" src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-mml-chtml.js" integrity="sha256-MASABpB4tYktI2Oitl4t+78w/lyA+D7b/s9GEP0JOGI=" crossorigin="anonymous"></script> <script src="/assets/al_math/js/mathjax-setup.js"></script> <script src="/assets/js/tooltips-setup.js?v=fe487e99db6c43751e6e7bdb2d6a0611"></script> <script src="/assets/js/no_defer.js?v=53b1b1a645525975c963ce8bf8bfefcf"></script> <script defer src="/assets/js/common.js?v=87baac90f765f2f3362dcf6aaf312a8a"></script> <script defer src="/assets/js/copy_code.js?v=c8a01c11a92744d44b093fc3bda915df" type="text/javascript"></script> <script defer src="/assets/js/jupyter_new_tab.js?v=896d254890d9b47f0281f63bfccf0dee"></script> <script async src="https://d1bxh8uas1mnw7.cloudfront.net/assets/embed.js"></script> <script async src="https://badge.dimensions.ai/badge.js"></script> <script defer src="https://cdn.jsdelivr.net/npm/medium-zoom@1.1.0/dist/medium-zoom.min.js" integrity="sha256-ZgMyDAIYDYGxbcpJcfUnYwNevG/xi9OHKaR/8GK+jWc=" crossorigin="anonymous"></script> <script defer src="/assets/al_img_tools/js/zoom.js"></script> <script defer src="/assets/js/progress-bar.js?v=499464c5c63ced6cf7ad62509f1e2610" type="text/javascript"></script> <script src="https://cdn.jsdelivr.net/npm/vanilla-back-to-top@7.2.1/dist/vanilla-back-to-top.min.js" integrity="sha256-uMJJ3EoTyfRBoTbR+lrfu1uRQ87RZG8AR3cVNuQVeFg=" crossorigin="anonymous"></script> <script>
+    addBackToTop();
+  </script> <script type="module" src="/assets/al_search/js/search/ninja-keys.min.js"></script> <ninja-keys hidebreadcrumbs noautoloadmdicons placeholder="Type to start searching"></ninja-keys> <script src="/assets/al_search/js/search-setup.js"></script> <script>
+// get the ninja-keys element
+const ninja = document.querySelector('ninja-keys');
+
+// add the home and posts menu items
+ninja.data = [{
+    id: "nav-about",
+    title: "About",
+    section: "Navigation",
+    handler: () => {
+      window.location.href = "/";
+    },
+  },{id: "nav-projects",
+          title: "Projects",
+          description: "",
+          section: "Navigation",
+          handler: () => {
+            window.location.href = "/#projects";
+          },
+        },{id: "nav-learning-hub",
+          title: "Learning Hub",
+          description: "Practical notes on servers, networking, Linux, security, and infrastructure automation.",
+          section: "Navigation",
+          handler: () => {
+            window.location.href = "/learn/index.html";
+          },
+        },{id: "nav-certifications",
+          title: "Certifications",
+          description: "Professional certifications across networking, cybersecurity, and infrastructure.",
+          section: "Navigation",
+          handler: () => {
+            window.location.href = "/certs/";
+          },
+        },{id: "post-diagnosing-ospf-init-state-across-encrypted-overlay-tunnels",
+        
+          title: "Diagnosing OSPF Init State Across Encrypted Overlay Tunnels",
+        
+        description: "How asymmetric OSPF Hello filtering can leave encrypted tunnels healthy while dynamic route exchange silently fails.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/ospf-init-state-firewall/";
+          
+        },
+      },{id: "post-when-ospf-routes-work-but-gateway-originated-tunnel-traffic-fails",
+        
+          title: "When OSPF Routes Work but Gateway-Originated Tunnel Traffic Fails",
+        
+        description: "Why multi-hop OSPF over encrypted tunnels can forward LAN traffic successfully while gateway-originated flows fail because tunnel /32 source addresses lack a return route.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/ospf-tunnel-source-routing/";
+          
+        },
+      },{id: "post-when-ike-is-healthy-but-ipsec-is-broken-diagnosing-one-way-esp-black-holes",
+        
+          title: "When IKE Is Healthy but IPsec Is Broken: Diagnosing One-Way ESP Black Holes...",
+        
+        description: "Why an IPsec tunnel can remain established at the IKE control plane while ESP traffic silently fails in one direction, and how to diagnose the split correctly.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/one-way-ipsec-esp-blackholes/";
+          
+        },
+      },{id: "post-atomic-configuration-validation-and-control-plane-drift",
+        
+          title: "Atomic Configuration Validation and Control-Plane Drift",
+        
+        description: "How schema validation, transactional configuration pushes, and datastore drift can cause a single invalid field to block an entire network-device configuration.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/atomic-config-validation/";
+          
+        },
+      },{id: "post-diagnosing-transient-network-outages-with-fault-domain-isolation",
+        
+          title: "Diagnosing Transient Network Outages with Fault-Domain Isolation",
+        
+        description: "A vendor-neutral method for separating gateway, switching, wireless authentication, and logging failures during short-lived network disruptions.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/transient-network-outage-isolation/";
+          
+        },
+      },{id: "post-when-10gbase-t-sfp-modules-destabilize-ethernet-links",
+        
+          title: "When 10GBASE-T SFP+ Modules Destabilize Ethernet Links",
+        
+        description: "How SFP+ module identification, PHY mode selection, and repeated link-state transitions can collapse TCP throughput even when an interface nominally reports 10 Gb/s.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/sfp-plus-link-flaps/";
+          
+        },
+      },{id: "post-ipsec-phase-2-traffic-selectors-and-partial-tunnel-failures",
+        
+          title: "IPsec Phase 2 Traffic Selectors and Partial Tunnel Failures",
+        
+        description: "Why an IPsec tunnel can remain established while one subnet pair fails because routing state and negotiated traffic selectors are separate control-plane objects.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/ipsec-phase2-selectors/";
+          
+        },
+      },{id: "post-when-ups-calibration-state-becomes-a-shutdown-hazard-in-network-ups-tools",
+        
+          title: "When UPS Calibration State Becomes a Shutdown Hazard in Network UPS Tools",
+        
+        description: "A deep analysis of how stale NUT calibration state can turn a brief monitoring outage into an immediate infrastructure shutdown.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/nut-calibration-state-failure/";
+          
+        },
+      },{id: "post-diagnosing-wan-failures-beyond-physical-link-state",
+        
+          title: "Diagnosing WAN Failures Beyond Physical Link State",
+        
+        description: "A layered method for distinguishing Ethernet carrier loss, upstream path degradation, and application-level failure in redundant WAN designs.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/diagnosing-wan-failures/";
+          
+        },
+      },{id: "post-diagnosing-linux-critical-thermal-shutdowns",
+        
+          title: "Diagnosing Linux Critical Thermal Shutdowns",
+        
+        description: "A practical framework for distinguishing genuine silicon overheating from faulty thermal telemetry when Linux initiates a protective shutdown.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/linux-critical-thermal-shutdowns/";
+          
+        },
+      },{id: "post-wireguard-site-to-site-routing-with-selective-split-tunneling",
+        
+          title: "WireGuard Site-to-Site Routing with Selective Split Tunneling",
+        
+        description: "How WireGuard cryptokey routing, policy-based forwarding, firewall rules, NAT, and return paths combine in a selective site-to-site VPN design.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/wireguard-site-to-site-split-tunneling/";
+          
+        },
+      },{id: "post-building-and-transferring-docker-images-to-air-gapped-debian-systems",
+        
+          title: "Building and Transferring Docker Images to Air-Gapped Debian Systems",
+        
+        description: "A practical Debian-focused guide to Docker images, containers, offline Docker installation, and transferring workloads into air-gapped environments.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/docker-images-containers-air-gapped-debian/";
+          
+        },
+      },{id: "post-configuring-git-and-github-ssh-access-safely",
+        
+          title: "Configuring Git and GitHub SSH Access Safely",
+        
+        description: "A practical guide to configuring Git identity, setting up SSH authentication with GitHub, managing remotes, and pushing changes safely.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/configuring-git-github-ssh-access-safely/";
+          
+        },
+      },{id: "post-welcome-to-the-learning-hub",
+        
+          title: "Welcome to the Learning Hub",
+        
+        description: "A home for practical notes on infrastructure, networking, Linux, and automation.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/welcome-to-the-learning-hub/";
+          
+        },
+      },{
+        id: 'social-email',
+        title: 'email',
+        section: 'Socials',
+        handler: () => {
+          window.open("mailto:%68%61%72%73%68%76%65%72%6D%61%63%35@%67%6D%61%69%6C.%63%6F%6D", "_blank");
+        },
+      },{
+        id: 'social-github',
+        title: 'GitHub',
+        section: 'Socials',
+        handler: () => {
+          window.open("https://github.com/harshvermac5", "_blank");
+        },
+      },{
+        id: 'social-linkedin',
+        title: 'LinkedIn',
+        section: 'Socials',
+        handler: () => {
+          window.open("https://www.linkedin.com/in/harshvermac5", "_blank");
+        },
+      },{
+        id: 'social-rss',
+        title: 'RSS Feed',
+        section: 'Socials',
+        handler: () => {
+          window.open("/feed.xml", "_blank");
+        },
+      },{
+      id: 'light-theme',
+      title: 'Change theme to light',
+      description: 'Change the theme of the site to Light',
+      section: 'Theme',
+      handler: () => {
+        setThemeSetting("light");
+      },
+    },
+    {
+      id: 'dark-theme',
+      title: 'Change theme to dark',
+      description: 'Change the theme of the site to Dark',
+      section: 'Theme',
+      handler: () => {
+        setThemeSetting("dark");
+      },
+    },
+    {
+      id: 'system-theme',
+      title: 'Use system default theme',
+      description: 'Change the theme of the site to System Default',
+      section: 'Theme',
+      handler: () => {
+        setThemeSetting("system");
+      },
+    },];
+
+</script> <script src="/assets/al_search/js/shortcut-key.js"></script> </body> </html>
