@@ -36,7 +36,7 @@
 journalctl <span class="nt">-k</span> <span class="nt">-b</span> <span class="nt">-1</span> | <span class="nb">grep</span> <span class="nt">-Ei</span> <span class="s1">'thermal|critical|shutdown|watchdog'</span>
 journalctl <span class="nt">--since</span> <span class="s1">'2026-08-31 07:40:30'</span> <span class="nt">--until</span> <span class="s1">'2026-08-31 07:42:00'</span>
 sensors <span class="nt">-u</span>
-</code></pre></div></div> <p>Suppose an on-die zone reaches <strong>106 °C</strong> while a board monitor reports <strong>64 °C</strong>. The 42 °C delta supports two hypotheses: localized junction heating across a real thermal resistance, or an erroneous sensor path. It does not select between them. A smooth rise tied to workload and improved by airflow supports genuine heating. Instantaneous spikes, impossible slew rates, repeated identical ceiling values, or failures at low load support telemetry or hardware instability.</p> <h2 id="key-technical-insights">Key Technical Insights</h2> <ul> <li> <strong>Causal ordering outranks log volume.</strong> The first decisive kernel event explains the service failures that follow during shutdown.</li> <li> <strong>Sensor scope matters.</strong> Junction, package, board, inlet, and external-monitor temperatures are not interchangeable.</li> <li> <strong>A normal post-boot reading is weak counterevidence.</strong> Power-off changes both thermal load and elapsed cooling time.</li> <li> <strong>Repeated historical critical trips establish recurrence.</strong> Rotated logs help separate a persistent mechanism from a one-time environmental excursion.</li> <li> <strong>Low fan RPM is contextual, not self-explanatory.</strong> Zero RPM can indicate fan-stop policy, passive cooling, missing fan hardware, or failure; validate the platform design and requested cooling state.</li> <li> <strong>Reboot is a risky critical action.</strong> Repeated rebooting can re-energize thermally stressed hardware before it cools, which is why shutdown is the preferred Device Tree default.</li> </ul> <h2 id="prevention-strategies-and-takeaways">Prevention Strategies and Takeaways</h2> <ul> <li>Place equipment where intake and exhaust paths remain unobstructed; avoid enclosed cabinets, stacked heat sources, and recirculating exhaust.</li> <li>Monitor every relevant zone and retain kernel logs across boots. Alert below the critical threshold so operators observe throttling before protection activates.</li> <li>Record ambient or inlet temperature alongside junction telemetry. Cross-sensor trends are more useful than isolated absolute values.</li> <li>Validate polling intervals against the platform’s worst-case temperature rise and use sensor interrupts where supported.</li> <li>After an airflow change, reproduce comparable workload and verify that no new <strong><code class="language-plaintext highlighter-rouge">critical temperature reached</code></strong> event appears.</li> <li>Escalate for hardware repair when critical trips persist under verified ambient conditions, readings show implausible discontinuities, or sensor disagreement cannot be explained by load and thermal design.</li> </ul> <p>The governing diagnostic rule is simple: trust the kernel event as proof of why the system shut down, but do not confuse proof of the shutdown mechanism with proof of the underlying thermal cause. That second conclusion requires correlated telemetry, physical inspection, controlled environmental testing, and recurrence analysis.</p> </div> </article> <br> <hr> <br> <h2 class="text-3xl font-semibold mb-4 mt-12">Enjoy Reading This Article?</h2> <p class="mb-2">Here are some more articles you might like to read next:</p> <ul class="list-disc pl-7 my-3 space-y-2 marker:text-[var(--global-theme-color)]"> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/ospf-init-state-firewall/">Diagnosing OSPF Init State Across Encrypted Overlay Tunnels</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/ospf-tunnel-source-routing/">When OSPF Routes Work but Gateway-Originated Tunnel Traffic Fails</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/one-way-ipsec-esp-blackholes/">When IKE Is Healthy but IPsec Is Broken: Diagnosing One-Way ESP Black Holes</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/atomic-config-validation/">Atomic Configuration Validation and Control-Plane Drift</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/transient-network-outage-isolation/">Diagnosing Transient Network Outages with Fault-Domain Isolation</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/sfp-plus-link-flaps/">When 10GBASE-T SFP+ Modules Destabilize Ethernet Links</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/ipsec-phase2-selectors/">IPsec Phase 2 Traffic Selectors and Partial Tunnel Failures</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/nut-calibration-state-failure/">When UPS Calibration State Becomes a Shutdown Hazard in Network UPS Tools</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/diagnosing-wan-failures/">Diagnosing WAN Failures Beyond Physical Link State</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/wireguard-site-to-site-split-tunneling/">WireGuard Site-to-Site Routing with Selective Split Tunneling</a> </li> </ul> </div> </div> <footer class="sticky-bottom mt-5" role="contentinfo"> <div class="container"> © Copyright 2026 Harsh Verma. Built with <a href="https://jekyllrb.com/" target="_blank" rel="external nofollow noopener">Jekyll</a> and <a href="https://github.com/alshedivat/al-folio" target="_blank" rel="external nofollow noopener">al-folio</a>. Hosted on GitHub Pages. </div> </footer> <script>
+</code></pre></div></div> <p>Suppose an on-die zone reaches <strong>106 °C</strong> while a board monitor reports <strong>64 °C</strong>. The 42 °C delta supports two hypotheses: localized junction heating across a real thermal resistance, or an erroneous sensor path. It does not select between them. A smooth rise tied to workload and improved by airflow supports genuine heating. Instantaneous spikes, impossible slew rates, repeated identical ceiling values, or failures at low load support telemetry or hardware instability.</p> <h2 id="key-technical-insights">Key Technical Insights</h2> <ul> <li> <strong>Causal ordering outranks log volume.</strong> The first decisive kernel event explains the service failures that follow during shutdown.</li> <li> <strong>Sensor scope matters.</strong> Junction, package, board, inlet, and external-monitor temperatures are not interchangeable.</li> <li> <strong>A normal post-boot reading is weak counterevidence.</strong> Power-off changes both thermal load and elapsed cooling time.</li> <li> <strong>Repeated historical critical trips establish recurrence.</strong> Rotated logs help separate a persistent mechanism from a one-time environmental excursion.</li> <li> <strong>Low fan RPM is contextual, not self-explanatory.</strong> Zero RPM can indicate fan-stop policy, passive cooling, missing fan hardware, or failure; validate the platform design and requested cooling state.</li> <li> <strong>Reboot is a risky critical action.</strong> Repeated rebooting can re-energize thermally stressed hardware before it cools, which is why shutdown is the preferred Device Tree default.</li> </ul> <h2 id="prevention-strategies-and-takeaways">Prevention Strategies and Takeaways</h2> <ul> <li>Place equipment where intake and exhaust paths remain unobstructed; avoid enclosed cabinets, stacked heat sources, and recirculating exhaust.</li> <li>Monitor every relevant zone and retain kernel logs across boots. Alert below the critical threshold so operators observe throttling before protection activates.</li> <li>Record ambient or inlet temperature alongside junction telemetry. Cross-sensor trends are more useful than isolated absolute values.</li> <li>Validate polling intervals against the platform’s worst-case temperature rise and use sensor interrupts where supported.</li> <li>After an airflow change, reproduce comparable workload and verify that no new <strong><code class="language-plaintext highlighter-rouge">critical temperature reached</code></strong> event appears.</li> <li>Escalate for hardware repair when critical trips persist under verified ambient conditions, readings show implausible discontinuities, or sensor disagreement cannot be explained by load and thermal design.</li> </ul> <p>The governing diagnostic rule is simple: trust the kernel event as proof of why the system shut down, but do not confuse proof of the shutdown mechanism with proof of the underlying thermal cause. That second conclusion requires correlated telemetry, physical inspection, controlled environmental testing, and recurrence analysis.</p> </div> </article> <br> <hr> <br> <h2 class="text-3xl font-semibold mb-4 mt-12">Enjoy Reading This Article?</h2> <p class="mb-2">Here are some more articles you might like to read next:</p> <ul class="list-disc pl-7 my-3 space-y-2 marker:text-[var(--global-theme-color)]"> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/sip-alg-conntrack-state/">SIP ALG, Conntrack State, and Persistent NAT Rewriting</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/domain-policy-routing-dns-observation/">Why Domain-Based Policy Routing Fails When DNS Bypasses the Gateway</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/wireguard-site-to-site-nat-routing/">Site-to-Site WireGuard Through NAT: Cryptokey Routing, Policy Routes, and Firewall State</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/inter-vlan-iot-discovery-firewalling/">Inter-VLAN IoT Discovery and Stateful Firewall Isolation</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/ddns-cgnat-tunneled-wan/">Why Dynamic DNS Breaks Behind CGNAT and Tunneled WAN Interfaces</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/linux-poe-probe-failures/">When Hardware Probing Fails: Linux Device Initialization and PoE Control-Plane Errors</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/pppoe-nat-postrouting/">PPPoE and Source NAT: Why Translation Belongs After Routing</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/dns-search-suffix-resolution/">DNS Search Suffixes, Absolute Names, and Why Short Hostnames Fail Across VPNs</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/ospf-init-state-firewall/">Diagnosing OSPF Init State Across Encrypted Overlay Tunnels</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/ospf-tunnel-source-routing/">When OSPF Routes Work but Gateway-Originated Tunnel Traffic Fails</a> </li> </ul> </div> </div> <footer class="sticky-bottom mt-5" role="contentinfo"> <div class="container"> © Copyright 2026 Harsh Verma. Built with <a href="https://jekyllrb.com/" target="_blank" rel="external nofollow noopener">Jekyll</a> and <a href="https://github.com/alshedivat/al-folio" target="_blank" rel="external nofollow noopener">al-folio</a>. Hosted on GitHub Pages. </div> </footer> <script>
   window.alFolio = {
     compatBootstrap: false
   };
@@ -75,7 +75,95 @@ ninja.data = [{
           handler: () => {
             window.location.href = "/certs/";
           },
-        },{id: "post-diagnosing-ospf-init-state-across-encrypted-overlay-tunnels",
+        },{id: "post-sip-alg-conntrack-state-and-persistent-nat-rewriting",
+        
+          title: "SIP ALG, Conntrack State, and Persistent NAT Rewriting",
+        
+        description: "How SIP application-layer gateways interact with UDP connection tracking, NAT mappings, response routing, and stale helper state.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/sip-alg-conntrack-state/";
+          
+        },
+      },{id: "post-why-domain-based-policy-routing-fails-when-dns-bypasses-the-gateway",
+        
+          title: "Why Domain-Based Policy Routing Fails When DNS Bypasses the Gateway",
+        
+        description: "A deep technical analysis of DNS-observed policy routing, dynamic destination sets, encrypted DNS bypass, and deterministic multi-WAN forwarding design.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/domain-policy-routing-dns-observation/";
+          
+        },
+      },{id: "post-site-to-site-wireguard-through-nat-cryptokey-routing-policy-routes-and-firewall-state",
+        
+          title: "Site-to-Site WireGuard Through NAT: Cryptokey Routing, Policy Routes, and Firewall State",
+        
+        description: "A technical guide to building selective site-to-site WireGuard connectivity through NAT while preserving local Internet breakout and predictable firewall behavior.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/wireguard-site-to-site-nat-routing/";
+          
+        },
+      },{id: "post-inter-vlan-iot-discovery-and-stateful-firewall-isolation",
+        
+          title: "Inter-VLAN IoT Discovery and Stateful Firewall Isolation",
+        
+        description: "A standards-based analysis of why IoT discovery and direct device access fail across VLAN boundaries, and how to design narrowly scoped inter-VLAN firewall policy without defeating segmentation.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/inter-vlan-iot-discovery-firewalling/";
+          
+        },
+      },{id: "post-why-dynamic-dns-breaks-behind-cgnat-and-tunneled-wan-interfaces",
+        
+          title: "Why Dynamic DNS Breaks Behind CGNAT and Tunneled WAN Interfaces",
+        
+        description: "A deep technical analysis of why interface-bound Dynamic DNS can publish the wrong address behind CGNAT, GRE tunnels, and multi-stage WAN architectures.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/ddns-cgnat-tunneled-wan/";
+          
+        },
+      },{id: "post-when-hardware-probing-fails-linux-device-initialization-and-poe-control-plane-errors",
+        
+          title: "When Hardware Probing Fails: Linux Device Initialization and PoE Control-Plane Errors",
+        
+        description: "How failed Linux driver probing can leave PoE hardware unrepresented in userspace and cause otherwise unrelated configuration transactions to fail.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/linux-poe-probe-failures/";
+          
+        },
+      },{id: "post-pppoe-and-source-nat-why-translation-belongs-after-routing",
+        
+          title: "PPPoE and Source NAT: Why Translation Belongs After Routing",
+        
+        description: "A deep technical guide to how PPPoE creates an IP forwarding interface, how stateful source NAT binds flows in post-routing, and when to use SNAT versus masquerading.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/pppoe-nat-postrouting/";
+          
+        },
+      },{id: "post-dns-search-suffixes-absolute-names-and-why-short-hostnames-fail-across-vpns",
+        
+          title: "DNS Search Suffixes, Absolute Names, and Why Short Hostnames Fail Across VPNs",
+        
+        description: "A deep technical guide to DNS search lists, absolute names, resolver behavior, and why short hostnames can fail even when DNS and IP connectivity are healthy.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/dns-search-suffix-resolution/";
+          
+        },
+      },{id: "post-diagnosing-ospf-init-state-across-encrypted-overlay-tunnels",
         
           title: "Diagnosing OSPF Init State Across Encrypted Overlay Tunnels",
         

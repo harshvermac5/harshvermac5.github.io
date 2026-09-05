@@ -26,7 +26,7 @@ Spoke-1 wgB: 10.255.0.62/32
 </code></pre></div></div> <p>That <code class="language-plaintext highlighter-rouge">src 10.255.0.1</code> is the critical clue. A destination route exists, but the selected source is not globally reachable across the overlay.</p> <p>Compare with an explicitly LAN-sourced test:</p> <div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>ping <span class="nt">-I</span> 10.10.0.1 10.20.0.1
 </code></pre></div></div> <p>If the LAN-sourced probe succeeds while the default gateway-originated probe fails, the evidence strongly isolates the issue to <strong>source-address reachability</strong>, not OSPF adjacency, tunnel establishment, or generic transit forwarding.</p> <p>Conntrack provides another useful discriminator. Replied LAN flows prove end-to-end transit:</p> <div class="language-text highlighter-rouge"><div class="highlight"><pre class="highlight"><code>tcp src=10.10.0.25 dst=10.20.0.40 ... ESTABLISHED
 </code></pre></div></div> <p>Unreplied router-sourced flows expose the missing return path:</p> <div class="language-text highlighter-rouge"><div class="highlight"><pre class="highlight"><code>icmp src=10.255.0.1 dst=10.20.0.1 ... UNREPLIED
-</code></pre></div></div> <h2 id="key-technical-insights">Key Technical Insights</h2> <ul> <li> <strong>Control-plane health is not end-to-end application reachability.</strong> Full OSPF adjacencies and installed routes prove topology knowledge, not bidirectional reachability for every possible source address.</li> <li> <strong>ECMP is not inherently the fault.</strong> RFC 2328 permits multiple equal-cost routes. If LAN traffic succeeds through those paths, ECMP itself is functioning.</li> <li> <strong>Tunnel interface addresses are infrastructure prefixes.</strong> If routers or services source traffic from them, those addresses become part of the routing design whether or not administrators intended them to be externally visible.</li> <li> <strong>A <code class="language-plaintext highlighter-rouge">/32</code> is maximally specific.</strong> It provides no implicit reachability to neighboring addresses. Remote routers need the exact host route or a covering prefix.</li> <li> <strong>Gateway diagnostics can be misleading.</strong> A failed router CLI <code class="language-plaintext highlighter-rouge">ping</code> may test a different source-address class than production LAN traffic.</li> <li> <strong>Tunnel security and routing are independent.</strong> A successful encrypted handshake proves peer cryptographic reachability, not that every inner source and destination has a valid routed return path.</li> </ul> <h2 id="prevention-strategies-and-takeaways">Prevention Strategies and Takeaways</h2> <p>Design routed overlays so that every address class that may legitimately source traffic has an intentional return path.</p> <ul> <li>Advertise tunnel transfer addresses when gateway-originated services must traverse multiple overlay hops, preferably through a summarized infrastructure prefix where the topology permits it.</li> <li>Alternatively, use loopback addresses as stable router service sources and advertise those loopbacks through the IGP.</li> <li>Bind operational probes and gateway services to a routed LAN or loopback source rather than relying on automatic interface-source selection.</li> <li>Validate both directions with <code class="language-plaintext highlighter-rouge">ip route get</code>, routing-table inspection, packet capture, and conntrack rather than treating <code class="language-plaintext highlighter-rouge">ping</code> success or failure as standalone proof.</li> <li>In dual-hub designs, consider direct hub-to-hub adjacencies when deterministic inter-hub connectivity is required. This reduces dependence on spoke transit and simplifies failure domains.</li> <li>Keep infrastructure prefix policy explicit. If transfer networks must remain non-routed, document that gateway-originated traffic cannot safely use them across multi-hop paths.</li> </ul> <p>The central lesson is simple but powerful: <strong>routing protocols advertise destinations, while successful conversations require the return network to understand the selected source</strong>. In encrypted multi-hop fabrics, separating those two questions is often the difference between chasing a phantom tunnel failure and identifying the actual routing defect.</p> </div> </article> <br> <hr> <br> <h2 class="text-3xl font-semibold mb-4 mt-12">Enjoy Reading This Article?</h2> <p class="mb-2">Here are some more articles you might like to read next:</p> <ul class="list-disc pl-7 my-3 space-y-2 marker:text-[var(--global-theme-color)]"> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/ospf-init-state-firewall/">Diagnosing OSPF Init State Across Encrypted Overlay Tunnels</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/one-way-ipsec-esp-blackholes/">When IKE Is Healthy but IPsec Is Broken: Diagnosing One-Way ESP Black Holes</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/atomic-config-validation/">Atomic Configuration Validation and Control-Plane Drift</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/transient-network-outage-isolation/">Diagnosing Transient Network Outages with Fault-Domain Isolation</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/sfp-plus-link-flaps/">When 10GBASE-T SFP+ Modules Destabilize Ethernet Links</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/ipsec-phase2-selectors/">IPsec Phase 2 Traffic Selectors and Partial Tunnel Failures</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/nut-calibration-state-failure/">When UPS Calibration State Becomes a Shutdown Hazard in Network UPS Tools</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/diagnosing-wan-failures/">Diagnosing WAN Failures Beyond Physical Link State</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/linux-critical-thermal-shutdowns/">Diagnosing Linux Critical Thermal Shutdowns</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/wireguard-site-to-site-split-tunneling/">WireGuard Site-to-Site Routing with Selective Split Tunneling</a> </li> </ul> </div> </div> <footer class="sticky-bottom mt-5" role="contentinfo"> <div class="container"> © Copyright 2026 Harsh Verma. Built with <a href="https://jekyllrb.com/" target="_blank" rel="external nofollow noopener">Jekyll</a> and <a href="https://github.com/alshedivat/al-folio" target="_blank" rel="external nofollow noopener">al-folio</a>. Hosted on GitHub Pages. </div> </footer> <script>
+</code></pre></div></div> <h2 id="key-technical-insights">Key Technical Insights</h2> <ul> <li> <strong>Control-plane health is not end-to-end application reachability.</strong> Full OSPF adjacencies and installed routes prove topology knowledge, not bidirectional reachability for every possible source address.</li> <li> <strong>ECMP is not inherently the fault.</strong> RFC 2328 permits multiple equal-cost routes. If LAN traffic succeeds through those paths, ECMP itself is functioning.</li> <li> <strong>Tunnel interface addresses are infrastructure prefixes.</strong> If routers or services source traffic from them, those addresses become part of the routing design whether or not administrators intended them to be externally visible.</li> <li> <strong>A <code class="language-plaintext highlighter-rouge">/32</code> is maximally specific.</strong> It provides no implicit reachability to neighboring addresses. Remote routers need the exact host route or a covering prefix.</li> <li> <strong>Gateway diagnostics can be misleading.</strong> A failed router CLI <code class="language-plaintext highlighter-rouge">ping</code> may test a different source-address class than production LAN traffic.</li> <li> <strong>Tunnel security and routing are independent.</strong> A successful encrypted handshake proves peer cryptographic reachability, not that every inner source and destination has a valid routed return path.</li> </ul> <h2 id="prevention-strategies-and-takeaways">Prevention Strategies and Takeaways</h2> <p>Design routed overlays so that every address class that may legitimately source traffic has an intentional return path.</p> <ul> <li>Advertise tunnel transfer addresses when gateway-originated services must traverse multiple overlay hops, preferably through a summarized infrastructure prefix where the topology permits it.</li> <li>Alternatively, use loopback addresses as stable router service sources and advertise those loopbacks through the IGP.</li> <li>Bind operational probes and gateway services to a routed LAN or loopback source rather than relying on automatic interface-source selection.</li> <li>Validate both directions with <code class="language-plaintext highlighter-rouge">ip route get</code>, routing-table inspection, packet capture, and conntrack rather than treating <code class="language-plaintext highlighter-rouge">ping</code> success or failure as standalone proof.</li> <li>In dual-hub designs, consider direct hub-to-hub adjacencies when deterministic inter-hub connectivity is required. This reduces dependence on spoke transit and simplifies failure domains.</li> <li>Keep infrastructure prefix policy explicit. If transfer networks must remain non-routed, document that gateway-originated traffic cannot safely use them across multi-hop paths.</li> </ul> <p>The central lesson is simple but powerful: <strong>routing protocols advertise destinations, while successful conversations require the return network to understand the selected source</strong>. In encrypted multi-hop fabrics, separating those two questions is often the difference between chasing a phantom tunnel failure and identifying the actual routing defect.</p> </div> </article> <br> <hr> <br> <h2 class="text-3xl font-semibold mb-4 mt-12">Enjoy Reading This Article?</h2> <p class="mb-2">Here are some more articles you might like to read next:</p> <ul class="list-disc pl-7 my-3 space-y-2 marker:text-[var(--global-theme-color)]"> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/sip-alg-conntrack-state/">SIP ALG, Conntrack State, and Persistent NAT Rewriting</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/domain-policy-routing-dns-observation/">Why Domain-Based Policy Routing Fails When DNS Bypasses the Gateway</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/wireguard-site-to-site-nat-routing/">Site-to-Site WireGuard Through NAT: Cryptokey Routing, Policy Routes, and Firewall State</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/inter-vlan-iot-discovery-firewalling/">Inter-VLAN IoT Discovery and Stateful Firewall Isolation</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/ddns-cgnat-tunneled-wan/">Why Dynamic DNS Breaks Behind CGNAT and Tunneled WAN Interfaces</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/linux-poe-probe-failures/">When Hardware Probing Fails: Linux Device Initialization and PoE Control-Plane Errors</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/pppoe-nat-postrouting/">PPPoE and Source NAT: Why Translation Belongs After Routing</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/dns-search-suffix-resolution/">DNS Search Suffixes, Absolute Names, and Why Short Hostnames Fail Across VPNs</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/ospf-init-state-firewall/">Diagnosing OSPF Init State Across Encrypted Overlay Tunnels</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/one-way-ipsec-esp-blackholes/">When IKE Is Healthy but IPsec Is Broken: Diagnosing One-Way ESP Black Holes</a> </li> </ul> </div> </div> <footer class="sticky-bottom mt-5" role="contentinfo"> <div class="container"> © Copyright 2026 Harsh Verma. Built with <a href="https://jekyllrb.com/" target="_blank" rel="external nofollow noopener">Jekyll</a> and <a href="https://github.com/alshedivat/al-folio" target="_blank" rel="external nofollow noopener">al-folio</a>. Hosted on GitHub Pages. </div> </footer> <script>
   window.alFolio = {
     compatBootstrap: false
   };
@@ -65,7 +65,95 @@ ninja.data = [{
           handler: () => {
             window.location.href = "/certs/";
           },
-        },{id: "post-diagnosing-ospf-init-state-across-encrypted-overlay-tunnels",
+        },{id: "post-sip-alg-conntrack-state-and-persistent-nat-rewriting",
+        
+          title: "SIP ALG, Conntrack State, and Persistent NAT Rewriting",
+        
+        description: "How SIP application-layer gateways interact with UDP connection tracking, NAT mappings, response routing, and stale helper state.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/sip-alg-conntrack-state/";
+          
+        },
+      },{id: "post-why-domain-based-policy-routing-fails-when-dns-bypasses-the-gateway",
+        
+          title: "Why Domain-Based Policy Routing Fails When DNS Bypasses the Gateway",
+        
+        description: "A deep technical analysis of DNS-observed policy routing, dynamic destination sets, encrypted DNS bypass, and deterministic multi-WAN forwarding design.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/domain-policy-routing-dns-observation/";
+          
+        },
+      },{id: "post-site-to-site-wireguard-through-nat-cryptokey-routing-policy-routes-and-firewall-state",
+        
+          title: "Site-to-Site WireGuard Through NAT: Cryptokey Routing, Policy Routes, and Firewall State",
+        
+        description: "A technical guide to building selective site-to-site WireGuard connectivity through NAT while preserving local Internet breakout and predictable firewall behavior.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/wireguard-site-to-site-nat-routing/";
+          
+        },
+      },{id: "post-inter-vlan-iot-discovery-and-stateful-firewall-isolation",
+        
+          title: "Inter-VLAN IoT Discovery and Stateful Firewall Isolation",
+        
+        description: "A standards-based analysis of why IoT discovery and direct device access fail across VLAN boundaries, and how to design narrowly scoped inter-VLAN firewall policy without defeating segmentation.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/inter-vlan-iot-discovery-firewalling/";
+          
+        },
+      },{id: "post-why-dynamic-dns-breaks-behind-cgnat-and-tunneled-wan-interfaces",
+        
+          title: "Why Dynamic DNS Breaks Behind CGNAT and Tunneled WAN Interfaces",
+        
+        description: "A deep technical analysis of why interface-bound Dynamic DNS can publish the wrong address behind CGNAT, GRE tunnels, and multi-stage WAN architectures.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/ddns-cgnat-tunneled-wan/";
+          
+        },
+      },{id: "post-when-hardware-probing-fails-linux-device-initialization-and-poe-control-plane-errors",
+        
+          title: "When Hardware Probing Fails: Linux Device Initialization and PoE Control-Plane Errors",
+        
+        description: "How failed Linux driver probing can leave PoE hardware unrepresented in userspace and cause otherwise unrelated configuration transactions to fail.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/linux-poe-probe-failures/";
+          
+        },
+      },{id: "post-pppoe-and-source-nat-why-translation-belongs-after-routing",
+        
+          title: "PPPoE and Source NAT: Why Translation Belongs After Routing",
+        
+        description: "A deep technical guide to how PPPoE creates an IP forwarding interface, how stateful source NAT binds flows in post-routing, and when to use SNAT versus masquerading.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/pppoe-nat-postrouting/";
+          
+        },
+      },{id: "post-dns-search-suffixes-absolute-names-and-why-short-hostnames-fail-across-vpns",
+        
+          title: "DNS Search Suffixes, Absolute Names, and Why Short Hostnames Fail Across VPNs",
+        
+        description: "A deep technical guide to DNS search lists, absolute names, resolver behavior, and why short hostnames can fail even when DNS and IP connectivity are healthy.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/dns-search-suffix-resolution/";
+          
+        },
+      },{id: "post-diagnosing-ospf-init-state-across-encrypted-overlay-tunnels",
         
           title: "Diagnosing OSPF Init State Across Encrypted Overlay Tunnels",
         

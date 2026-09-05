@@ -1,0 +1,370 @@
+<!DOCTYPE html> <html lang="en"> <head> <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"> <meta charset="utf-8"> <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no"> <meta http-equiv="X-UA-Compatible" content="IE=edge"> <title> Why Domain-Based Policy Routing Fails When DNS Bypasses the Gateway | Harsh Verma </title> <meta name="author" content="Harsh Verma"> <meta name="description" content="A deep technical analysis of DNS-observed policy routing, dynamic destination sets, encrypted DNS bypass, and deterministic multi-WAN forwarding design."> <meta name="keywords" content="server engineer, network engineer, linux, data center, infrastructure automation, portfolio"> <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https:; style-src 'self' 'unsafe-inline' https:; img-src 'self' data: https:; font-src 'self' data: https:; media-src 'self' https:; frame-src 'self' https:; connect-src 'self' https:;"> <style>
+  :root {
+    --max-content-width: 1100px;
+  }
+</style> <link rel="stylesheet" href="/assets/css/tailwind.css?v=50c64c15cbb9fd1ce6056fdb8bcb4b62"> <link defer rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.2.0/css/all.min.css" integrity="sha256-MVopmdyC2tYTiJ8wlktf0uh0v4NgT+vNdyVFepi7Q0c=" crossorigin="anonymous"> <link defer rel="stylesheet" href="https://cdn.jsdelivr.net/npm/academicons@1.9.5/css/academicons.min.css" integrity="sha256-SzrCOBJbGVFMahewkgjwnApaV2+av1DwMAA+/QGLyZw=" crossorigin="anonymous"> <link defer rel="stylesheet" href="https://cdn.jsdelivr.net/npm/scholar-icons@1.0.3/css/scholar-icons.css" integrity="sha256-VY3hHVj/hNX3fYG6wtbA6TcKJQl7+FthzGSyIB64klY=" crossorigin="anonymous"> <link defer rel="stylesheet" type="text/css" href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700|Roboto+Slab:100,300,400,500,700|Material+Icons&amp;display=swap"> <link defer rel="stylesheet" href="/assets/css/jekyll-pygments-themes-github.css?v=591dab5a4e56573bf4ef7fd332894c99" media="" id="highlight_theme_light"> <link rel="shortcut icon" href="data:image/svg+xml,&lt;svg%20xmlns=%22http://www.w3.org/2000/svg%22%20viewBox=%220%200%20100%20100%22&gt;&lt;text%20y=%22.9em%22%20font-size=%2290%22&gt;%F0%9F%96%A5%EF%B8%8F&lt;/text&gt;&lt;/svg&gt;"> <link rel="stylesheet" href="/assets/css/main.css?v=3116ba77db9ee1581d05bb3e86fbf7f1"> <link rel="canonical" href="https://harshvermac5.github.io/learn/2026/domain-policy-routing-dns-observation/"> <script src="/assets/js/theme.js?v=5286c3e4c334d0ecb8fc0c40ff4fa7ec"></script> <link defer rel="stylesheet" href="/assets/css/jekyll-pygments-themes-native.css?v=5847e5ed4a4568527aa6cfab446049ca" media="none" id="highlight_theme_dark"> <script>
+    initTheme();
+  </script> </head> <body class="fixed-top-nav sticky-bottom-footer"> <header> <nav id="navbar" class="navbar navbar-light navbar-expand-sm fixed-top" role="navigation"> <div class="container"> <a class="navbar-brand title font-weight-lighter" href="/"> Harsh Verma </a> <button class="navbar-toggler collapsed navbar-toggler-main" type="button" data-nav-toggle="navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation"> <span class="sr-only">Toggle navigation</span> <span class="icon-bar top-bar"></span> <span class="icon-bar middle-bar"></span> <span class="icon-bar bottom-bar"></span> </button> <div class="collapse navbar-collapse navbar-collapse-main" id="navbarNav"> <ul class="navbar-nav navbar-menu-list flex-nowrap"> <li class="nav-item "> <a class="nav-link" href="/">About </a> </li> <li class="nav-item "> <a class="nav-link" href="/#projects">Projects </a> </li> <li class="nav-item active"> <a class="nav-link" href="/learn/index.html">Learning Hub </a> </li> <li class="nav-item "> <a class="nav-link" href="/certs/">Certifications </a> </li> <li class="nav-item"> <button id="search-toggle" type="button" title="Search" aria-label="Open search"> <span class="nav-link">ctrl k <i class="fa-solid fa-magnifying-glass"></i></span> </button> </li> <li class="toggle-container"> <button id="light-toggle" type="button" title="Change theme" aria-label="Change color theme"> <i class="fa-half-sun-moon" id="light-toggle-system"></i> <i class="fa-solid fa-moon" id="light-toggle-dark"></i> <i class="fa-solid fa-sun" id="light-toggle-light"></i> </button> </li> </ul> </div> </div> </nav> <progress id="progress" value="0"> <div class="progress-container"> <span class="progress-bar"></span> </div> </progress> </header> <div class="container mt-5" role="main"> <div class="post"> <header class="post-header"> <h1 class="post-title">Why Domain-Based Policy Routing Fails When DNS Bypasses the Gateway</h1> <p class="post-meta"> Created on September 05, 2026 </p> <p class="post-tags"> <i class="fa-solid fa-calendar fa-sm"></i> 2026   ·   <i class="fa-solid fa-hashtag fa-sm"></i> dns   <i class="fa-solid fa-hashtag fa-sm"></i> policy-routing   <i class="fa-solid fa-hashtag fa-sm"></i> multi-wan   ·   <i class="fa-solid fa-tag fa-sm"></i> Networking </p> </header> <article class="post-content"> <div id="markdown-content"> <h2 id="problem-statement-or-learning-objective">Problem Statement or Learning Objective</h2> <p>Domain-based policy routing appears simple: define a hostname such as <code class="language-plaintext highlighter-rouge">service.example</code>, associate it with a secondary uplink, and expect every connection to that service to leave through that uplink. The hidden difficulty is that routers forward IP packets, not domain names. Once an application resolves a name, the packet carries only source and destination IP addresses; the original DNS name is absent from the IPv4 or IPv6 header.</p> <p>Many implementations bridge that semantic gap by observing DNS responses and translating domain names into a temporary set of destination addresses. The forwarding rule then matches the resulting IP set. This creates a dependency that is easy to miss: <strong>the router must observe the DNS transaction before it can classify the later IP flow</strong>.</p> <p>The objective is to understand this coupling and why external or encrypted DNS, caches, and CDN address rotation can leave an apparently valid policy with nothing to match.</p> <h2 id="co-technical-subject">Co-Technical Subject</h2> <p><strong>DNS-Assisted Policy-Based Routing and Multi-WAN Traffic Classification</strong></p> <p>This mechanism combines DNS resolution, packet classification, policy routing, connection tracking, and NAT. It is an implementation architecture built on standard DNS and IP forwarding behavior, not a standalone IETF routing protocol.</p> <h2 id="theoretical-foundation">Theoretical Foundation</h2> <p>DNS is defined primarily by <strong>RFC 1034</strong> and <strong>RFC 1035</strong>, published in 1987 as Internet Standard <strong>STD 13</strong>. DNS separates names from network-layer addresses. RFC 1035 states that <a href="https://www.rfc-editor.org/rfc/rfc1035.html#section-2.1" rel="external nofollow noopener" target="_blank">“The goal of domain names is to provide a mechanism for naming resources”</a>. A resolver returns A or AAAA records, and applications then communicate using those addresses.</p> <p>An ordinary IP packet does not carry the DNS name that selected its destination. <strong>RFC 1812</strong> defines IPv4 router requirements around IP forwarding, so domain-aware routing requires an additional classifier outside normal destination lookup.</p> <p>A gateway DNS proxy is also a recognized architecture. <strong>RFC 5625, BCP 152, 2009</strong> notes that <a href="https://www.rfc-editor.org/rfc/rfc5625.html#section-1" rel="external nofollow noopener" target="_blank">“The proxy serves as a convenient default DNS resolver for clients on the LAN”</a>. A policy-routing implementation can reuse that observation point to associate DNS answers with configured domains. This domain-to-address classifier is <strong>not standardized by DNS RFCs</strong>.</p> <h2 id="mechanism-breakdown">Mechanism Breakdown</h2> <p>A DNS-assisted policy-routing pipeline typically operates as follows.</p> <ul> <li>The client sends an A or AAAA query to the gateway DNS proxy or forwarder.</li> <li>The gateway observes the response and extracts relevant A/AAAA records, including applicable CNAME-derived addresses.</li> <li>Those addresses enter a <strong>dynamic destination set</strong>, usually with lifetimes related to DNS TTLs.</li> <li>Later packets are matched against that set.</li> <li>A match applies a policy selector such as a mark or alternate routing table.</li> <li>Policy lookup chooses the alternate WAN next hop, while NAT and connection tracking retain flow-specific egress state.</li> </ul> <p>Conceptually, the DNS-learning stage resembles:</p> <div class="language-text highlighter-rouge"><div class="highlight"><pre class="highlight"><code>on_dns_response(qname, answers):
+    if qname matches configured_domain:
+        for address_record in answers:
+            destination_set.insert(
+                address_record.address,
+                timeout=address_record.ttl
+            )
+</code></pre></div></div> <p>If a client sends DNS directly to an external resolver, the local proxy never observes the response in the context required by the classifier. The destination set remains empty, so a valid rule can still match <strong>zero packets</strong>.</p> <p>A fail-closed or “kill switch” control does not fix this. It acts <strong>after a packet matches a policy</strong>; a classification miss falls through to normal forwarding before that logic matters.</p> <h2 id="industry-standards-reference">Industry Standards Reference</h2> <p>The standards define the building blocks rather than domain routing itself.</p> <ul> <li> <strong>RFC 1034 and RFC 1035, STD 13, 1987</strong> define DNS concepts, resolver behavior, resource records, caching, and query/response processing.</li> <li> <strong>RFC 5625, BCP 152, 2009</strong> provides DNS proxy implementation guidance for gateway devices.</li> <li> <strong>RFC 1812, Proposed Standard, 1995</strong> defines core IPv4 router forwarding requirements.</li> <li> <strong>RFC 7858, Proposed Standard, 2016</strong> defines DNS over TLS. Encryption prevents an ordinary intermediate observer from reading the DNS transaction.</li> <li> <strong>RFC 8310, Proposed Standard, 2018</strong> updates operational privacy profiles for DNS over TLS and DTLS.</li> <li> <strong>RFC 8484, Proposed Standard, 2018</strong> defines DNS over HTTPS. Its architecture explicitly states that <a href="https://www.rfc-editor.org/rfc/rfc8484.html#section-1" rel="external nofollow noopener" target="_blank">“Each DNS query-response pair is mapped into an HTTP exchange”</a>, which can remove DNS visibility from a gateway classifier.</li> <li> <strong>RFC 1918, BCP 5, 1996</strong> defines private IPv4 address space commonly seen on internal or upstream-NAT interfaces.</li> <li> <strong>RFC 3022, Informational, 2001</strong> describes traditional NAT and NAPT behavior relevant to multi-WAN egress translation.</li> <li> <strong>RFC 5737, Informational, 2010</strong> reserves IPv4 prefixes used below for documentation examples.</li> </ul> <p>No IEEE switching standard directly governs this mechanism because the decision is primarily a Layer-3 forwarding and DNS-classification function rather than an Ethernet control-plane behavior.</p> <h2 id="practical-examples-and-evidence">Practical Examples and Evidence</h2> <p>A Linux reference implementation illustrates the forwarding portion. Assume WAN1 uses <code class="language-plaintext highlighter-rouge">192.0.2.1</code>, WAN2 uses <code class="language-plaintext highlighter-rouge">198.51.100.1</code>, and the DNS observer learned <code class="language-plaintext highlighter-rouge">203.0.113.40</code>.</p> <p>A dynamic nftables set can represent learned destinations:</p> <pre><code class="language-nft">set domain_wan2_v4 {
+    type ipv4_addr
+    flags timeout
+}
+</code></pre> <p>The observer inserts the address using a lifetime derived from DNS state:</p> <div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>nft add element inet pbr domain_wan2_v4 <span class="s1">'{ 203.0.113.40 timeout 300s }'</span>
+</code></pre></div></div> <p>Packet classification can then mark matching traffic:</p> <pre><code class="language-nft">ip daddr @domain_wan2_v4 meta mark set 0x2
+</code></pre> <p>Linux policy routing can map that mark to a secondary table:</p> <div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>ip rule add fwmark 0x2 lookup 200
+ip route add default via 198.51.100.1 dev wan2 table 200
+</code></pre></div></div> <p>If the destination set is empty, no mark is applied and the main table remains authoritative. Diagnostic evidence therefore should test the entire chain rather than only the configured rule:</p> <div class="language-text highlighter-rouge"><div class="highlight"><pre class="highlight"><code>DNS query observed by gateway:     yes/no
+A/AAAA address learned:             yes/no
+Destination present in dynamic set: yes/no
+Packet counter on classifier:       increasing/static
+Policy mark applied:                yes/no
+Alternate FIB selected:             yes/no
+Egress interface:                   wan1/wan2
+</code></pre></div></div> <p>Path testing can expose the resulting forwarding choice. A simplified pre-fix trace might show WAN1:</p> <div class="language-text highlighter-rouge"><div class="highlight"><pre class="highlight"><code>1  10.0.0.1
+2  192.0.2.1
+</code></pre></div></div> <p>After DNS visibility and policy matching are restored, a fresh connection might show WAN2:</p> <div class="language-text highlighter-rouge"><div class="highlight"><pre class="highlight"><code>1  10.0.0.1
+2  198.51.100.1
+</code></pre></div></div> <p>Existing sessions may remain on the original path because connection tracking, NAT state, HTTP reuse, and QUIC can outlive a browser tab. Test with fresh DNS resolution and a new transport flow.</p> <h2 id="key-technical-insights">Key Technical Insights</h2> <ul> <li> <strong>Domain routing is really address routing with a DNS-fed classifier.</strong> The configured hostname is metadata used to maintain an IP set; packets are still forwarded by IP.</li> <li> <strong>Resolver placement becomes a routing dependency.</strong> Direct external DNS can bypass the observation point even though ordinary Internet connectivity remains healthy.</li> <li> <strong>Encrypted DNS changes observability by design.</strong> DoH and DoT improve confidentiality but can conflict with middlebox features that depend on inspecting DNS answers.</li> <li> <strong>Caching creates temporal state.</strong> The OS, application, recursive resolver, gateway, classifier, and connection tracker can all hold state with different lifetimes.</li> <li> <strong>CDNs make domain-to-IP mapping non-deterministic.</strong> A hostname may return multiple addresses, change by geography, use short TTLs, or share addresses with unrelated hostnames.</li> <li> <strong>Double NAT does not inherently break outbound policy routing.</strong> A secondary WAN may itself use private addressing behind an upstream NAT and still provide a valid outbound next hop. The larger impact is on inbound reachability and port mapping.</li> <li> <strong>Static IP policies are more deterministic but less semantic.</strong> They avoid DNS-observation failure but are fragile with rotating CDN or anycast addresses.</li> </ul> <h2 id="prevention-strategies-and-takeaways">Prevention Strategies and Takeaways</h2> <p>Treat the DNS path as part of the forwarding architecture.</p> <ul> <li>Ensure clients intended to use DNS-derived routing send resolution through the observation point that maintains the policy’s destination set.</li> <li>Account for manually configured resolvers, VPN-provided DNS, browser DoH, operating-system encrypted DNS, and privacy relay services.</li> <li>Monitor dynamic-set population and rule counters, not merely configuration presence.</li> <li>Align learned-address lifetimes with DNS TTL behavior and remove stale entries predictably.</li> <li>Test with fresh DNS state and new connections so old cache, NAT, or connection-tracking entries do not mask the result.</li> <li>Prefer IP or prefix policy when the destination set is stable and strict deterministic routing matters more than hostname semantics.</li> <li>For large CDN-backed applications, treat domain-based routing as a best-effort classifier unless the architecture provides an authoritative application-aware control point.</li> <li>Document the privacy trade-off explicitly. Requiring gateway-visible DNS can conflict with encrypted-DNS objectives, so the network design should choose intentionally between observability-driven policy and end-to-end resolver privacy.</li> </ul> <p>The central principle is simple but consequential: <strong>a domain-based routing rule can only classify addresses it has learned</strong>. When DNS resolution bypasses the learner, the routing policy does not fail at the forwarding table; it fails one stage earlier, at classification.</p> </div> </article> <br> <hr> <br> <h2 class="text-3xl font-semibold mb-4 mt-12">Enjoy Reading This Article?</h2> <p class="mb-2">Here are some more articles you might like to read next:</p> <ul class="list-disc pl-7 my-3 space-y-2 marker:text-[var(--global-theme-color)]"> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/sip-alg-conntrack-state/">SIP ALG, Conntrack State, and Persistent NAT Rewriting</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/wireguard-site-to-site-nat-routing/">Site-to-Site WireGuard Through NAT: Cryptokey Routing, Policy Routes, and Firewall State</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/inter-vlan-iot-discovery-firewalling/">Inter-VLAN IoT Discovery and Stateful Firewall Isolation</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/ddns-cgnat-tunneled-wan/">Why Dynamic DNS Breaks Behind CGNAT and Tunneled WAN Interfaces</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/linux-poe-probe-failures/">When Hardware Probing Fails: Linux Device Initialization and PoE Control-Plane Errors</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/pppoe-nat-postrouting/">PPPoE and Source NAT: Why Translation Belongs After Routing</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/dns-search-suffix-resolution/">DNS Search Suffixes, Absolute Names, and Why Short Hostnames Fail Across VPNs</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/ospf-init-state-firewall/">Diagnosing OSPF Init State Across Encrypted Overlay Tunnels</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/ospf-tunnel-source-routing/">When OSPF Routes Work but Gateway-Originated Tunnel Traffic Fails</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/one-way-ipsec-esp-blackholes/">When IKE Is Healthy but IPsec Is Broken: Diagnosing One-Way ESP Black Holes</a> </li> </ul> </div> </div> <footer class="sticky-bottom mt-5" role="contentinfo"> <div class="container"> © Copyright 2026 Harsh Verma. Built with <a href="https://jekyllrb.com/" target="_blank" rel="external nofollow noopener">Jekyll</a> and <a href="https://github.com/alshedivat/al-folio" target="_blank" rel="external nofollow noopener">al-folio</a>. Hosted on GitHub Pages. </div> </footer> <script>
+  window.alFolio = {
+    compatBootstrap: false
+  };
+</script> <script src="/assets/js/nav-toggle.js?v=141bd79a73ebc0f0b6ea58e440ae79fc"></script> <script defer src="https://cdn.jsdelivr.net/npm/masonry-layout@4.2.2/dist/masonry.pkgd.min.js" integrity="sha256-Nn1q/fx0H7SNLZMQ5Hw5JLaTRZp0yILA/FRexe19VdI=" crossorigin="anonymous"></script> <script defer src="https://cdn.jsdelivr.net/npm/imagesloaded@5.0.0/imagesloaded.pkgd.min.js" integrity="sha256-htrLFfZJ6v5udOG+3kNLINIKh2gvoKqwEhHYfTTMICc=" crossorigin="anonymous"></script> <script defer src="/assets/js/masonry.js?v=e49affc7bd2646f6acdad1dbe02c2359" type="text/javascript"></script> <script defer type="text/javascript" id="MathJax-script" src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-mml-chtml.js" integrity="sha256-MASABpB4tYktI2Oitl4t+78w/lyA+D7b/s9GEP0JOGI=" crossorigin="anonymous"></script> <script src="/assets/al_math/js/mathjax-setup.js"></script> <script src="/assets/js/tooltips-setup.js?v=fe487e99db6c43751e6e7bdb2d6a0611"></script> <script src="/assets/js/no_defer.js?v=53b1b1a645525975c963ce8bf8bfefcf"></script> <script defer src="/assets/js/common.js?v=87baac90f765f2f3362dcf6aaf312a8a"></script> <script defer src="/assets/js/copy_code.js?v=c8a01c11a92744d44b093fc3bda915df" type="text/javascript"></script> <script defer src="/assets/js/jupyter_new_tab.js?v=896d254890d9b47f0281f63bfccf0dee"></script> <script async src="https://d1bxh8uas1mnw7.cloudfront.net/assets/embed.js"></script> <script async src="https://badge.dimensions.ai/badge.js"></script> <script defer src="https://cdn.jsdelivr.net/npm/medium-zoom@1.1.0/dist/medium-zoom.min.js" integrity="sha256-ZgMyDAIYDYGxbcpJcfUnYwNevG/xi9OHKaR/8GK+jWc=" crossorigin="anonymous"></script> <script defer src="/assets/al_img_tools/js/zoom.js"></script> <script defer src="/assets/js/progress-bar.js?v=499464c5c63ced6cf7ad62509f1e2610" type="text/javascript"></script> <script src="https://cdn.jsdelivr.net/npm/vanilla-back-to-top@7.2.1/dist/vanilla-back-to-top.min.js" integrity="sha256-uMJJ3EoTyfRBoTbR+lrfu1uRQ87RZG8AR3cVNuQVeFg=" crossorigin="anonymous"></script> <script>
+    addBackToTop();
+  </script> <script type="module" src="/assets/al_search/js/search/ninja-keys.min.js"></script> <ninja-keys hidebreadcrumbs noautoloadmdicons placeholder="Type to start searching"></ninja-keys> <script src="/assets/al_search/js/search-setup.js"></script> <script>
+// get the ninja-keys element
+const ninja = document.querySelector('ninja-keys');
+
+// add the home and posts menu items
+ninja.data = [{
+    id: "nav-about",
+    title: "About",
+    section: "Navigation",
+    handler: () => {
+      window.location.href = "/";
+    },
+  },{id: "nav-projects",
+          title: "Projects",
+          description: "",
+          section: "Navigation",
+          handler: () => {
+            window.location.href = "/#projects";
+          },
+        },{id: "nav-learning-hub",
+          title: "Learning Hub",
+          description: "Practical notes on servers, networking, Linux, security, and infrastructure automation.",
+          section: "Navigation",
+          handler: () => {
+            window.location.href = "/learn/index.html";
+          },
+        },{id: "nav-certifications",
+          title: "Certifications",
+          description: "Professional certifications across networking, cybersecurity, and infrastructure.",
+          section: "Navigation",
+          handler: () => {
+            window.location.href = "/certs/";
+          },
+        },{id: "post-sip-alg-conntrack-state-and-persistent-nat-rewriting",
+        
+          title: "SIP ALG, Conntrack State, and Persistent NAT Rewriting",
+        
+        description: "How SIP application-layer gateways interact with UDP connection tracking, NAT mappings, response routing, and stale helper state.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/sip-alg-conntrack-state/";
+          
+        },
+      },{id: "post-why-domain-based-policy-routing-fails-when-dns-bypasses-the-gateway",
+        
+          title: "Why Domain-Based Policy Routing Fails When DNS Bypasses the Gateway",
+        
+        description: "A deep technical analysis of DNS-observed policy routing, dynamic destination sets, encrypted DNS bypass, and deterministic multi-WAN forwarding design.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/domain-policy-routing-dns-observation/";
+          
+        },
+      },{id: "post-site-to-site-wireguard-through-nat-cryptokey-routing-policy-routes-and-firewall-state",
+        
+          title: "Site-to-Site WireGuard Through NAT: Cryptokey Routing, Policy Routes, and Firewall State",
+        
+        description: "A technical guide to building selective site-to-site WireGuard connectivity through NAT while preserving local Internet breakout and predictable firewall behavior.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/wireguard-site-to-site-nat-routing/";
+          
+        },
+      },{id: "post-inter-vlan-iot-discovery-and-stateful-firewall-isolation",
+        
+          title: "Inter-VLAN IoT Discovery and Stateful Firewall Isolation",
+        
+        description: "A standards-based analysis of why IoT discovery and direct device access fail across VLAN boundaries, and how to design narrowly scoped inter-VLAN firewall policy without defeating segmentation.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/inter-vlan-iot-discovery-firewalling/";
+          
+        },
+      },{id: "post-why-dynamic-dns-breaks-behind-cgnat-and-tunneled-wan-interfaces",
+        
+          title: "Why Dynamic DNS Breaks Behind CGNAT and Tunneled WAN Interfaces",
+        
+        description: "A deep technical analysis of why interface-bound Dynamic DNS can publish the wrong address behind CGNAT, GRE tunnels, and multi-stage WAN architectures.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/ddns-cgnat-tunneled-wan/";
+          
+        },
+      },{id: "post-when-hardware-probing-fails-linux-device-initialization-and-poe-control-plane-errors",
+        
+          title: "When Hardware Probing Fails: Linux Device Initialization and PoE Control-Plane Errors",
+        
+        description: "How failed Linux driver probing can leave PoE hardware unrepresented in userspace and cause otherwise unrelated configuration transactions to fail.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/linux-poe-probe-failures/";
+          
+        },
+      },{id: "post-pppoe-and-source-nat-why-translation-belongs-after-routing",
+        
+          title: "PPPoE and Source NAT: Why Translation Belongs After Routing",
+        
+        description: "A deep technical guide to how PPPoE creates an IP forwarding interface, how stateful source NAT binds flows in post-routing, and when to use SNAT versus masquerading.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/pppoe-nat-postrouting/";
+          
+        },
+      },{id: "post-dns-search-suffixes-absolute-names-and-why-short-hostnames-fail-across-vpns",
+        
+          title: "DNS Search Suffixes, Absolute Names, and Why Short Hostnames Fail Across VPNs",
+        
+        description: "A deep technical guide to DNS search lists, absolute names, resolver behavior, and why short hostnames can fail even when DNS and IP connectivity are healthy.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/dns-search-suffix-resolution/";
+          
+        },
+      },{id: "post-diagnosing-ospf-init-state-across-encrypted-overlay-tunnels",
+        
+          title: "Diagnosing OSPF Init State Across Encrypted Overlay Tunnels",
+        
+        description: "How asymmetric OSPF Hello filtering can leave encrypted tunnels healthy while dynamic route exchange silently fails.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/ospf-init-state-firewall/";
+          
+        },
+      },{id: "post-when-ospf-routes-work-but-gateway-originated-tunnel-traffic-fails",
+        
+          title: "When OSPF Routes Work but Gateway-Originated Tunnel Traffic Fails",
+        
+        description: "Why multi-hop OSPF over encrypted tunnels can forward LAN traffic successfully while gateway-originated flows fail because tunnel /32 source addresses lack a return route.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/ospf-tunnel-source-routing/";
+          
+        },
+      },{id: "post-when-ike-is-healthy-but-ipsec-is-broken-diagnosing-one-way-esp-black-holes",
+        
+          title: "When IKE Is Healthy but IPsec Is Broken: Diagnosing One-Way ESP Black Holes...",
+        
+        description: "Why an IPsec tunnel can remain established at the IKE control plane while ESP traffic silently fails in one direction, and how to diagnose the split correctly.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/one-way-ipsec-esp-blackholes/";
+          
+        },
+      },{id: "post-atomic-configuration-validation-and-control-plane-drift",
+        
+          title: "Atomic Configuration Validation and Control-Plane Drift",
+        
+        description: "How schema validation, transactional configuration pushes, and datastore drift can cause a single invalid field to block an entire network-device configuration.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/atomic-config-validation/";
+          
+        },
+      },{id: "post-diagnosing-transient-network-outages-with-fault-domain-isolation",
+        
+          title: "Diagnosing Transient Network Outages with Fault-Domain Isolation",
+        
+        description: "A vendor-neutral method for separating gateway, switching, wireless authentication, and logging failures during short-lived network disruptions.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/transient-network-outage-isolation/";
+          
+        },
+      },{id: "post-when-10gbase-t-sfp-modules-destabilize-ethernet-links",
+        
+          title: "When 10GBASE-T SFP+ Modules Destabilize Ethernet Links",
+        
+        description: "How SFP+ module identification, PHY mode selection, and repeated link-state transitions can collapse TCP throughput even when an interface nominally reports 10 Gb/s.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/sfp-plus-link-flaps/";
+          
+        },
+      },{id: "post-ipsec-phase-2-traffic-selectors-and-partial-tunnel-failures",
+        
+          title: "IPsec Phase 2 Traffic Selectors and Partial Tunnel Failures",
+        
+        description: "Why an IPsec tunnel can remain established while one subnet pair fails because routing state and negotiated traffic selectors are separate control-plane objects.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/ipsec-phase2-selectors/";
+          
+        },
+      },{id: "post-when-ups-calibration-state-becomes-a-shutdown-hazard-in-network-ups-tools",
+        
+          title: "When UPS Calibration State Becomes a Shutdown Hazard in Network UPS Tools",
+        
+        description: "A deep analysis of how stale NUT calibration state can turn a brief monitoring outage into an immediate infrastructure shutdown.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/nut-calibration-state-failure/";
+          
+        },
+      },{id: "post-diagnosing-wan-failures-beyond-physical-link-state",
+        
+          title: "Diagnosing WAN Failures Beyond Physical Link State",
+        
+        description: "A layered method for distinguishing Ethernet carrier loss, upstream path degradation, and application-level failure in redundant WAN designs.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/diagnosing-wan-failures/";
+          
+        },
+      },{id: "post-diagnosing-linux-critical-thermal-shutdowns",
+        
+          title: "Diagnosing Linux Critical Thermal Shutdowns",
+        
+        description: "A practical framework for distinguishing genuine silicon overheating from faulty thermal telemetry when Linux initiates a protective shutdown.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/linux-critical-thermal-shutdowns/";
+          
+        },
+      },{id: "post-wireguard-site-to-site-routing-with-selective-split-tunneling",
+        
+          title: "WireGuard Site-to-Site Routing with Selective Split Tunneling",
+        
+        description: "How WireGuard cryptokey routing, policy-based forwarding, firewall rules, NAT, and return paths combine in a selective site-to-site VPN design.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/wireguard-site-to-site-split-tunneling/";
+          
+        },
+      },{id: "post-building-and-transferring-docker-images-to-air-gapped-debian-systems",
+        
+          title: "Building and Transferring Docker Images to Air-Gapped Debian Systems",
+        
+        description: "A practical Debian-focused guide to Docker images, containers, offline Docker installation, and transferring workloads into air-gapped environments.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/docker-images-containers-air-gapped-debian/";
+          
+        },
+      },{id: "post-configuring-git-and-github-ssh-access-safely",
+        
+          title: "Configuring Git and GitHub SSH Access Safely",
+        
+        description: "A practical guide to configuring Git identity, setting up SSH authentication with GitHub, managing remotes, and pushing changes safely.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/configuring-git-github-ssh-access-safely/";
+          
+        },
+      },{id: "post-welcome-to-the-learning-hub",
+        
+          title: "Welcome to the Learning Hub",
+        
+        description: "A home for practical notes on infrastructure, networking, Linux, and automation.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/welcome-to-the-learning-hub/";
+          
+        },
+      },{
+        id: 'social-email',
+        title: 'email',
+        section: 'Socials',
+        handler: () => {
+          window.open("mailto:%68%61%72%73%68%76%65%72%6D%61%63%35@%67%6D%61%69%6C.%63%6F%6D", "_blank");
+        },
+      },{
+        id: 'social-github',
+        title: 'GitHub',
+        section: 'Socials',
+        handler: () => {
+          window.open("https://github.com/harshvermac5", "_blank");
+        },
+      },{
+        id: 'social-linkedin',
+        title: 'LinkedIn',
+        section: 'Socials',
+        handler: () => {
+          window.open("https://www.linkedin.com/in/harshvermac5", "_blank");
+        },
+      },{
+        id: 'social-rss',
+        title: 'RSS Feed',
+        section: 'Socials',
+        handler: () => {
+          window.open("/feed.xml", "_blank");
+        },
+      },{
+      id: 'light-theme',
+      title: 'Change theme to light',
+      description: 'Change the theme of the site to Light',
+      section: 'Theme',
+      handler: () => {
+        setThemeSetting("light");
+      },
+    },
+    {
+      id: 'dark-theme',
+      title: 'Change theme to dark',
+      description: 'Change the theme of the site to Dark',
+      section: 'Theme',
+      handler: () => {
+        setThemeSetting("dark");
+      },
+    },
+    {
+      id: 'system-theme',
+      title: 'Use system default theme',
+      description: 'Change the theme of the site to System Default',
+      section: 'Theme',
+      handler: () => {
+        setThemeSetting("system");
+      },
+    },];
+
+</script> <script src="/assets/al_search/js/shortcut-key.js"></script> </body> </html>

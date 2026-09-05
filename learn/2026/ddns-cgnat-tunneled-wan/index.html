@@ -1,0 +1,370 @@
+<!DOCTYPE html> <html lang="en"> <head> <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"> <meta charset="utf-8"> <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no"> <meta http-equiv="X-UA-Compatible" content="IE=edge"> <title> Why Dynamic DNS Breaks Behind CGNAT and Tunneled WAN Interfaces | Harsh Verma </title> <meta name="author" content="Harsh Verma"> <meta name="description" content="A deep technical analysis of why interface-bound Dynamic DNS can publish the wrong address behind CGNAT, GRE tunnels, and multi-stage WAN architectures."> <meta name="keywords" content="server engineer, network engineer, linux, data center, infrastructure automation, portfolio"> <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https:; style-src 'self' 'unsafe-inline' https:; img-src 'self' data: https:; font-src 'self' data: https:; media-src 'self' https:; frame-src 'self' https:; connect-src 'self' https:;"> <style>
+  :root {
+    --max-content-width: 1100px;
+  }
+</style> <link rel="stylesheet" href="/assets/css/tailwind.css?v=50c64c15cbb9fd1ce6056fdb8bcb4b62"> <link defer rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.2.0/css/all.min.css" integrity="sha256-MVopmdyC2tYTiJ8wlktf0uh0v4NgT+vNdyVFepi7Q0c=" crossorigin="anonymous"> <link defer rel="stylesheet" href="https://cdn.jsdelivr.net/npm/academicons@1.9.5/css/academicons.min.css" integrity="sha256-SzrCOBJbGVFMahewkgjwnApaV2+av1DwMAA+/QGLyZw=" crossorigin="anonymous"> <link defer rel="stylesheet" href="https://cdn.jsdelivr.net/npm/scholar-icons@1.0.3/css/scholar-icons.css" integrity="sha256-VY3hHVj/hNX3fYG6wtbA6TcKJQl7+FthzGSyIB64klY=" crossorigin="anonymous"> <link defer rel="stylesheet" type="text/css" href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700|Roboto+Slab:100,300,400,500,700|Material+Icons&amp;display=swap"> <link defer rel="stylesheet" href="/assets/css/jekyll-pygments-themes-github.css?v=591dab5a4e56573bf4ef7fd332894c99" media="" id="highlight_theme_light"> <link rel="shortcut icon" href="data:image/svg+xml,&lt;svg%20xmlns=%22http://www.w3.org/2000/svg%22%20viewBox=%220%200%20100%20100%22&gt;&lt;text%20y=%22.9em%22%20font-size=%2290%22&gt;%F0%9F%96%A5%EF%B8%8F&lt;/text&gt;&lt;/svg&gt;"> <link rel="stylesheet" href="/assets/css/main.css?v=3116ba77db9ee1581d05bb3e86fbf7f1"> <link rel="canonical" href="https://harshvermac5.github.io/learn/2026/ddns-cgnat-tunneled-wan/"> <script src="/assets/js/theme.js?v=5286c3e4c334d0ecb8fc0c40ff4fa7ec"></script> <link defer rel="stylesheet" href="/assets/css/jekyll-pygments-themes-native.css?v=5847e5ed4a4568527aa6cfab446049ca" media="none" id="highlight_theme_dark"> <script>
+    initTheme();
+  </script> </head> <body class="fixed-top-nav sticky-bottom-footer"> <header> <nav id="navbar" class="navbar navbar-light navbar-expand-sm fixed-top" role="navigation"> <div class="container"> <a class="navbar-brand title font-weight-lighter" href="/"> Harsh Verma </a> <button class="navbar-toggler collapsed navbar-toggler-main" type="button" data-nav-toggle="navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation"> <span class="sr-only">Toggle navigation</span> <span class="icon-bar top-bar"></span> <span class="icon-bar middle-bar"></span> <span class="icon-bar bottom-bar"></span> </button> <div class="collapse navbar-collapse navbar-collapse-main" id="navbarNav"> <ul class="navbar-nav navbar-menu-list flex-nowrap"> <li class="nav-item "> <a class="nav-link" href="/">About </a> </li> <li class="nav-item "> <a class="nav-link" href="/#projects">Projects </a> </li> <li class="nav-item active"> <a class="nav-link" href="/learn/index.html">Learning Hub </a> </li> <li class="nav-item "> <a class="nav-link" href="/certs/">Certifications </a> </li> <li class="nav-item"> <button id="search-toggle" type="button" title="Search" aria-label="Open search"> <span class="nav-link">ctrl k <i class="fa-solid fa-magnifying-glass"></i></span> </button> </li> <li class="toggle-container"> <button id="light-toggle" type="button" title="Change theme" aria-label="Change color theme"> <i class="fa-half-sun-moon" id="light-toggle-system"></i> <i class="fa-solid fa-moon" id="light-toggle-dark"></i> <i class="fa-solid fa-sun" id="light-toggle-light"></i> </button> </li> </ul> </div> </div> </nav> <progress id="progress" value="0"> <div class="progress-container"> <span class="progress-bar"></span> </div> </progress> </header> <div class="container mt-5" role="main"> <div class="post"> <header class="post-header"> <h1 class="post-title">Why Dynamic DNS Breaks Behind CGNAT and Tunneled WAN Interfaces</h1> <p class="post-meta"> Created on September 05, 2026 </p> <p class="post-tags"> <i class="fa-solid fa-calendar fa-sm"></i> 2026   ·   <i class="fa-solid fa-hashtag fa-sm"></i> ddns   <i class="fa-solid fa-hashtag fa-sm"></i> cgnat   <i class="fa-solid fa-hashtag fa-sm"></i> gre   ·   <i class="fa-solid fa-tag fa-sm"></i> Networking </p> </header> <article class="post-content"> <div id="markdown-content"> <h2 id="problem-statement-or-learning-objective">Problem Statement or Learning Objective</h2> <p>Dynamic DNS is often treated as a simple mapping problem: detect the current WAN address, update an <code class="language-plaintext highlighter-rouge">A</code> record, and let remote clients follow the hostname. That model works when the edge router actually owns the globally routable address. It becomes unreliable when the router’s selected WAN interface is a tunnel endpoint or a Carrier-Grade NAT-facing interface.</p> <p>The core principle is that <strong>DNS update and public-address discovery are separate mechanisms</strong>. A DDNS client can correctly update DNS while still choosing an address that has no global reachability. If a client is configured to read the address directly from a tunnel interface, and that interface is numbered from <code class="language-plaintext highlighter-rouge">100.64.0.0/10</code>, the client may publish a CGN shared address even though outbound traffic eventually appears on the Internet from a different public IPv4 address.</p> <p>This article explains why that happens, how GRE and CGNAT alter address ownership, and why discovering a public address with an external service still does not guarantee inbound reachability.</p> <h2 id="co-technical-subject">Co-Technical Subject</h2> <p><strong>Dynamic DNS, Carrier-Grade NAT, tunnel interface addressing, and WAN address discovery</strong>.</p> <p>The important architectural boundary is between the address configured on the customer edge interface and the address used after upstream translation. In direct PPP, DHCP, or static WAN designs, those may be the same address. In tunneled cellular, managed access, or CGNAT designs, they may be completely different.</p> <h2 id="theoretical-foundation">Theoretical Foundation</h2> <p>Dynamic DNS itself is standardized by <strong>RFC 2136, Dynamic Updates in the Domain Name System, 1997</strong>. DNS UPDATE defines how resource records are added, replaced, or removed. It does not define how a DDNS application determines which IPv4 address should be inserted into an <code class="language-plaintext highlighter-rouge">A</code> record. RFC 2136 states that <a href="https://www.rfc-editor.org/rfc/rfc2136.html" rel="external nofollow noopener" target="_blank">“The Update Section contains the edits to be made”</a>. Address discovery therefore remains an implementation decision outside the DNS UPDATE protocol.</p> <p>That distinction matters because common DDNS clients generally use one of two discovery models:</p> <ul> <li> <strong>Interface-bound discovery</strong> reads the address configured on a named network interface.</li> <li> <strong>External-observation discovery</strong> queries an Internet service that reports the source address observed after all upstream translations.</li> </ul> <p>Carrier-Grade NAT changes the meaning of the interface address. <strong>RFC 6598, IANA-Reserved IPv4 Prefix for Shared Address Space, 2012</strong> reserves <code class="language-plaintext highlighter-rouge">100.64.0.0/10</code> for service-provider shared addressing and explicitly states that <a href="https://www.rfc-editor.org/rfc/rfc6598.html" rel="external nofollow noopener" target="_blank">“The Shared Address Space address range is 100.64.0.0/10.”</a> This range is not ordinary RFC 1918 private space, but it is also not globally routable subscriber address space.</p> <p><strong>RFC 6888, Common Requirements for Carrier-Grade NATs, 2013</strong>, describes CGN as a provider-controlled translation function that shares public IPv4 addresses among subscribers. Its operational significance is summarized by the statement <a href="https://www.rfc-editor.org/rfc/rfc6888.html" rel="external nofollow noopener" target="_blank">“A CGN is not managed by the subscribers.”</a> The subscriber therefore cannot assume control over the public-side address, port mappings, or unsolicited inbound traffic.</p> <p>GRE adds another layer of indirection. <strong>RFC 2784, Generic Routing Encapsulation, 2000</strong> describes a general-purpose tunnel in which <a href="https://www.rfc-editor.org/rfc/rfc2784.html" rel="external nofollow noopener" target="_blank">“The payload is first encapsulated in a GRE packet.”</a> A GRE interface may therefore carry routed subscriber traffic while its own local address represents only the tunnel endpoint. The address on that logical interface need not be the address ultimately visible to the public Internet.</p> <h2 id="mechanism-breakdown">Mechanism Breakdown</h2> <p>Consider an edge router with a cellular backup path presented as a GRE interface. The interface may look like this:</p> <div class="language-text highlighter-rouge"><div class="highlight"><pre class="highlight"><code>gre1@NONE: &lt;POINTOPOINT,NOARP,UP,LOWER_UP&gt;
+    link/gre 10.10.11.1 peer 10.10.11.232
+    inet 100.127.125.129/31 scope global gre1
+</code></pre></div></div> <p>The <code class="language-plaintext highlighter-rouge">/31</code> is a point-to-point subnet. Both addresses are inside <code class="language-plaintext highlighter-rouge">100.64.0.0/10</code>, so neither is a globally routable subscriber address.</p> <p>An interface-bound DDNS workflow behaves approximately as follows:</p> <ul> <li>The DDNS configuration references <code class="language-plaintext highlighter-rouge">gre1</code> as the source WAN interface.</li> <li>The updater calls the operating system’s interface-address APIs or inspects local network state.</li> <li>The selected IPv4 address is <code class="language-plaintext highlighter-rouge">100.127.125.129</code>.</li> <li>The updater compares that value with its last recorded value.</li> <li>If a change is detected, it sends an authenticated update to the DNS provider.</li> <li>The authoritative DNS zone is updated with the address supplied by the client.</li> </ul> <p>Nothing in that sequence is inherently broken. The client is publishing the address it was told to monitor. The architectural error is assuming that the interface address is equivalent to the Internet-visible address.</p> <p>Outbound traffic follows a different path. A packet may traverse the GRE tunnel, reach a service-provider gateway, and then pass through CGN before reaching the Internet. A simplified path is:</p> <div class="language-text highlighter-rouge"><div class="highlight"><pre class="highlight"><code>LAN host
+   -&gt; edge router
+   -&gt; GRE interface 100.127.125.129
+   -&gt; provider tunnel endpoint
+   -&gt; carrier NAT
+   -&gt; public Internet address 198.51.100.42
+</code></pre></div></div> <p>The edge router owns <code class="language-plaintext highlighter-rouge">100.127.125.129</code>; the provider’s NAT owns the translation that causes Internet servers to observe <code class="language-plaintext highlighter-rouge">198.51.100.42</code>. These are different address domains.</p> <p>An external check service exposes that difference:</p> <div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>ip <span class="nt">-4</span> addr show dev gre1
+curl <span class="nt">-4</span> https://example-check-ip.invalid
+</code></pre></div></div> <p>Conceptually, the first command may return <code class="language-plaintext highlighter-rouge">100.127.125.129</code>, while the second returns the translated public address. This is useful diagnostic evidence because it proves that the local interface address and the externally observed source address are not identical.</p> <p>However, publishing the externally observed address is not equivalent to making inbound connectivity work. Under CGN, the provider controls the public-side mapping. A DNS record can correctly point to the shared public address while unsolicited inbound TCP or UDP still has no mapping back to the subscriber. DDNS solves <strong>name-to-address freshness</strong>; it does not create NAT state or port ownership.</p> <h2 id="industry-standards-reference">Industry Standards Reference</h2> <ul> <li> <strong>RFC 2136, 1997 — Dynamic Updates in the Domain Name System:</strong> defines DNS UPDATE transaction semantics, prerequisites, additions, deletions, and server processing.</li> <li> <strong>RFC 2784, 2000 — Generic Routing Encapsulation:</strong> defines GRE packet encapsulation and the separation between payload and delivery protocols.</li> <li> <strong>RFC 3022, 2001 — Traditional IP Network Address Translator:</strong> explains basic NAT and NAPT translation between address realms and documents fundamental NAT limitations.</li> <li> <strong>RFC 6598, 2012 — IANA-Reserved IPv4 Prefix for Shared Address Space:</strong> reserves <code class="language-plaintext highlighter-rouge">100.64.0.0/10</code> for service-provider shared addressing used with CGN deployments.</li> <li> <strong>RFC 6888, 2013 — Common Requirements for Carrier-Grade NATs:</strong> specifies operational requirements for multi-subscriber NAT and emphasizes that CGN is controlled by the service provider.</li> </ul> <p>The standards collectively reveal an important boundary: DNS can publish any syntactically valid address, but routing and NAT determine whether that address is meaningful or reachable from the public Internet.</p> <h2 id="practical-examples-and-evidence">Practical Examples and Evidence</h2> <p>A vendor-neutral DDNS configuration might explicitly bind a hostname to an interface:</p> <div class="language-yaml highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="na">ddns</span><span class="pi">:</span>
+  <span class="na">hostname</span><span class="pi">:</span> <span class="s">backup.example.net</span>
+  <span class="na">address_source</span><span class="pi">:</span> <span class="s">interface</span>
+  <span class="na">interface</span><span class="pi">:</span> <span class="s">gre1</span>
+</code></pre></div></div> <p>With this model, the authoritative record can legitimately become:</p> <div class="language-text highlighter-rouge"><div class="highlight"><pre class="highlight"><code>backup.example.net. 300 IN A 100.127.125.129
+</code></pre></div></div> <p>A diagnostic workflow should compare local assignment, forwarding selection, external observation, and DNS state:</p> <div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>ip <span class="nt">-4</span> addr show dev gre1
+ip route get 1.1.1.1
+dig +short backup.example.net A
+curl <span class="nt">-4</span> https://ifconfig.me
+</code></pre></div></div> <p>If the results are conceptually:</p> <div class="language-text highlighter-rouge"><div class="highlight"><pre class="highlight"><code>interface address:    100.127.125.129
+DNS A record:         100.127.125.129
+external source IP:   198.51.100.42
+</code></pre></div></div> <p>then the DDNS client is behaving consistently with <strong>interface-bound address discovery</strong>, but the chosen discovery method does not represent the post-CGN Internet address.</p> <p>An external-observation design changes only the discovery stage:</p> <div class="language-yaml highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="na">ddns</span><span class="pi">:</span>
+  <span class="na">hostname</span><span class="pi">:</span> <span class="s">backup.example.net</span>
+  <span class="na">address_source</span><span class="pi">:</span> <span class="s">external_check</span>
+</code></pre></div></div> <p>That can make the DNS record match the translated public address. It still does not prove inbound reachability. A separate test from an unrelated external network is required to determine whether the provider permits inbound mappings or provides a dedicated public address.</p> <h2 id="key-technical-insights">Key Technical Insights</h2> <ul> <li> <strong>DDNS is not NAT traversal.</strong> Updating an <code class="language-plaintext highlighter-rouge">A</code> record does not establish inbound state through a carrier NAT.</li> <li> <strong>Interface ownership matters.</strong> A logical WAN or tunnel interface may own only a transport endpoint, not the address ultimately visible on the Internet.</li> <li> <strong><code class="language-plaintext highlighter-rouge">100.64.0.0/10</code> is a strong architectural signal.</strong> Seeing this range on the subscriber-facing WAN strongly suggests provider shared addressing and possible CGN.</li> <li> <strong>A successful external IP check proves egress translation, not inbound reachability.</strong> The observed address may be shared among many subscribers.</li> <li> <strong>Failover designs amplify discovery mistakes.</strong> A DDNS client that changes source interfaces during failover must understand whether each path exposes a direct public address, a private address, a tunnel endpoint, or a CGN address.</li> <li> <strong>Correct configuration can still produce an unusable result.</strong> The DDNS application may faithfully publish the configured interface address even when that address has no global routing significance.</li> </ul> <h2 id="prevention-strategies-and-takeaways">Prevention Strategies and Takeaways</h2> <ul> <li>Determine whether the WAN interface directly owns a globally routable address before binding DDNS to it.</li> <li>Treat addresses inside <code class="language-plaintext highlighter-rouge">100.64.0.0/10</code> as provider shared space, not as normal public WAN addresses.</li> <li>Compare <code class="language-plaintext highlighter-rouge">ip addr</code>, route selection, an external check-IP result, and the authoritative DNS record when diagnosing DDNS mismatches.</li> <li>Use external-observation address discovery only when the goal is to publish the post-NAT source address, and document that this does not guarantee inbound connectivity.</li> <li>For inbound services, verify whether the provider offers a dedicated public IPv4 address, static mapping, port-control mechanism, or non-CGN access profile.</li> <li>Prefer outbound-established overlay tunnels when remote reachability must survive NAT, CGN, or WAN failover. These designs reverse the dependency: the site initiates connectivity toward a reachable rendezvous or tunnel endpoint rather than waiting for unsolicited inbound traffic.</li> <li>In multi-WAN designs, model <strong>address discovery</strong>, <strong>DNS publication</strong>, <strong>NAT ownership</strong>, and <strong>inbound reachability</strong> as separate control-plane questions. Conflating them is the root cause of many apparently inconsistent DDNS failures.</li> </ul> <p>The general lesson is straightforward: the address attached to a WAN interface is not always the address that represents the site on the Internet. Once tunnels and provider-side NAT are introduced, DDNS must be designed around address ownership and translation boundaries rather than interface names alone.</p> </div> </article> <br> <hr> <br> <h2 class="text-3xl font-semibold mb-4 mt-12">Enjoy Reading This Article?</h2> <p class="mb-2">Here are some more articles you might like to read next:</p> <ul class="list-disc pl-7 my-3 space-y-2 marker:text-[var(--global-theme-color)]"> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/sip-alg-conntrack-state/">SIP ALG, Conntrack State, and Persistent NAT Rewriting</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/domain-policy-routing-dns-observation/">Why Domain-Based Policy Routing Fails When DNS Bypasses the Gateway</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/wireguard-site-to-site-nat-routing/">Site-to-Site WireGuard Through NAT: Cryptokey Routing, Policy Routes, and Firewall State</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/inter-vlan-iot-discovery-firewalling/">Inter-VLAN IoT Discovery and Stateful Firewall Isolation</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/linux-poe-probe-failures/">When Hardware Probing Fails: Linux Device Initialization and PoE Control-Plane Errors</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/pppoe-nat-postrouting/">PPPoE and Source NAT: Why Translation Belongs After Routing</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/dns-search-suffix-resolution/">DNS Search Suffixes, Absolute Names, and Why Short Hostnames Fail Across VPNs</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/ospf-init-state-firewall/">Diagnosing OSPF Init State Across Encrypted Overlay Tunnels</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/ospf-tunnel-source-routing/">When OSPF Routes Work but Gateway-Originated Tunnel Traffic Fails</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/one-way-ipsec-esp-blackholes/">When IKE Is Healthy but IPsec Is Broken: Diagnosing One-Way ESP Black Holes</a> </li> </ul> </div> </div> <footer class="sticky-bottom mt-5" role="contentinfo"> <div class="container"> © Copyright 2026 Harsh Verma. Built with <a href="https://jekyllrb.com/" target="_blank" rel="external nofollow noopener">Jekyll</a> and <a href="https://github.com/alshedivat/al-folio" target="_blank" rel="external nofollow noopener">al-folio</a>. Hosted on GitHub Pages. </div> </footer> <script>
+  window.alFolio = {
+    compatBootstrap: false
+  };
+</script> <script src="/assets/js/nav-toggle.js?v=141bd79a73ebc0f0b6ea58e440ae79fc"></script> <script defer src="https://cdn.jsdelivr.net/npm/masonry-layout@4.2.2/dist/masonry.pkgd.min.js" integrity="sha256-Nn1q/fx0H7SNLZMQ5Hw5JLaTRZp0yILA/FRexe19VdI=" crossorigin="anonymous"></script> <script defer src="https://cdn.jsdelivr.net/npm/imagesloaded@5.0.0/imagesloaded.pkgd.min.js" integrity="sha256-htrLFfZJ6v5udOG+3kNLINIKh2gvoKqwEhHYfTTMICc=" crossorigin="anonymous"></script> <script defer src="/assets/js/masonry.js?v=e49affc7bd2646f6acdad1dbe02c2359" type="text/javascript"></script> <script defer type="text/javascript" id="MathJax-script" src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-mml-chtml.js" integrity="sha256-MASABpB4tYktI2Oitl4t+78w/lyA+D7b/s9GEP0JOGI=" crossorigin="anonymous"></script> <script src="/assets/al_math/js/mathjax-setup.js"></script> <script src="/assets/js/tooltips-setup.js?v=fe487e99db6c43751e6e7bdb2d6a0611"></script> <script src="/assets/js/no_defer.js?v=53b1b1a645525975c963ce8bf8bfefcf"></script> <script defer src="/assets/js/common.js?v=87baac90f765f2f3362dcf6aaf312a8a"></script> <script defer src="/assets/js/copy_code.js?v=c8a01c11a92744d44b093fc3bda915df" type="text/javascript"></script> <script defer src="/assets/js/jupyter_new_tab.js?v=896d254890d9b47f0281f63bfccf0dee"></script> <script async src="https://d1bxh8uas1mnw7.cloudfront.net/assets/embed.js"></script> <script async src="https://badge.dimensions.ai/badge.js"></script> <script defer src="https://cdn.jsdelivr.net/npm/medium-zoom@1.1.0/dist/medium-zoom.min.js" integrity="sha256-ZgMyDAIYDYGxbcpJcfUnYwNevG/xi9OHKaR/8GK+jWc=" crossorigin="anonymous"></script> <script defer src="/assets/al_img_tools/js/zoom.js"></script> <script defer src="/assets/js/progress-bar.js?v=499464c5c63ced6cf7ad62509f1e2610" type="text/javascript"></script> <script src="https://cdn.jsdelivr.net/npm/vanilla-back-to-top@7.2.1/dist/vanilla-back-to-top.min.js" integrity="sha256-uMJJ3EoTyfRBoTbR+lrfu1uRQ87RZG8AR3cVNuQVeFg=" crossorigin="anonymous"></script> <script>
+    addBackToTop();
+  </script> <script type="module" src="/assets/al_search/js/search/ninja-keys.min.js"></script> <ninja-keys hidebreadcrumbs noautoloadmdicons placeholder="Type to start searching"></ninja-keys> <script src="/assets/al_search/js/search-setup.js"></script> <script>
+// get the ninja-keys element
+const ninja = document.querySelector('ninja-keys');
+
+// add the home and posts menu items
+ninja.data = [{
+    id: "nav-about",
+    title: "About",
+    section: "Navigation",
+    handler: () => {
+      window.location.href = "/";
+    },
+  },{id: "nav-projects",
+          title: "Projects",
+          description: "",
+          section: "Navigation",
+          handler: () => {
+            window.location.href = "/#projects";
+          },
+        },{id: "nav-learning-hub",
+          title: "Learning Hub",
+          description: "Practical notes on servers, networking, Linux, security, and infrastructure automation.",
+          section: "Navigation",
+          handler: () => {
+            window.location.href = "/learn/index.html";
+          },
+        },{id: "nav-certifications",
+          title: "Certifications",
+          description: "Professional certifications across networking, cybersecurity, and infrastructure.",
+          section: "Navigation",
+          handler: () => {
+            window.location.href = "/certs/";
+          },
+        },{id: "post-sip-alg-conntrack-state-and-persistent-nat-rewriting",
+        
+          title: "SIP ALG, Conntrack State, and Persistent NAT Rewriting",
+        
+        description: "How SIP application-layer gateways interact with UDP connection tracking, NAT mappings, response routing, and stale helper state.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/sip-alg-conntrack-state/";
+          
+        },
+      },{id: "post-why-domain-based-policy-routing-fails-when-dns-bypasses-the-gateway",
+        
+          title: "Why Domain-Based Policy Routing Fails When DNS Bypasses the Gateway",
+        
+        description: "A deep technical analysis of DNS-observed policy routing, dynamic destination sets, encrypted DNS bypass, and deterministic multi-WAN forwarding design.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/domain-policy-routing-dns-observation/";
+          
+        },
+      },{id: "post-site-to-site-wireguard-through-nat-cryptokey-routing-policy-routes-and-firewall-state",
+        
+          title: "Site-to-Site WireGuard Through NAT: Cryptokey Routing, Policy Routes, and Firewall State",
+        
+        description: "A technical guide to building selective site-to-site WireGuard connectivity through NAT while preserving local Internet breakout and predictable firewall behavior.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/wireguard-site-to-site-nat-routing/";
+          
+        },
+      },{id: "post-inter-vlan-iot-discovery-and-stateful-firewall-isolation",
+        
+          title: "Inter-VLAN IoT Discovery and Stateful Firewall Isolation",
+        
+        description: "A standards-based analysis of why IoT discovery and direct device access fail across VLAN boundaries, and how to design narrowly scoped inter-VLAN firewall policy without defeating segmentation.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/inter-vlan-iot-discovery-firewalling/";
+          
+        },
+      },{id: "post-why-dynamic-dns-breaks-behind-cgnat-and-tunneled-wan-interfaces",
+        
+          title: "Why Dynamic DNS Breaks Behind CGNAT and Tunneled WAN Interfaces",
+        
+        description: "A deep technical analysis of why interface-bound Dynamic DNS can publish the wrong address behind CGNAT, GRE tunnels, and multi-stage WAN architectures.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/ddns-cgnat-tunneled-wan/";
+          
+        },
+      },{id: "post-when-hardware-probing-fails-linux-device-initialization-and-poe-control-plane-errors",
+        
+          title: "When Hardware Probing Fails: Linux Device Initialization and PoE Control-Plane Errors",
+        
+        description: "How failed Linux driver probing can leave PoE hardware unrepresented in userspace and cause otherwise unrelated configuration transactions to fail.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/linux-poe-probe-failures/";
+          
+        },
+      },{id: "post-pppoe-and-source-nat-why-translation-belongs-after-routing",
+        
+          title: "PPPoE and Source NAT: Why Translation Belongs After Routing",
+        
+        description: "A deep technical guide to how PPPoE creates an IP forwarding interface, how stateful source NAT binds flows in post-routing, and when to use SNAT versus masquerading.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/pppoe-nat-postrouting/";
+          
+        },
+      },{id: "post-dns-search-suffixes-absolute-names-and-why-short-hostnames-fail-across-vpns",
+        
+          title: "DNS Search Suffixes, Absolute Names, and Why Short Hostnames Fail Across VPNs",
+        
+        description: "A deep technical guide to DNS search lists, absolute names, resolver behavior, and why short hostnames can fail even when DNS and IP connectivity are healthy.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/dns-search-suffix-resolution/";
+          
+        },
+      },{id: "post-diagnosing-ospf-init-state-across-encrypted-overlay-tunnels",
+        
+          title: "Diagnosing OSPF Init State Across Encrypted Overlay Tunnels",
+        
+        description: "How asymmetric OSPF Hello filtering can leave encrypted tunnels healthy while dynamic route exchange silently fails.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/ospf-init-state-firewall/";
+          
+        },
+      },{id: "post-when-ospf-routes-work-but-gateway-originated-tunnel-traffic-fails",
+        
+          title: "When OSPF Routes Work but Gateway-Originated Tunnel Traffic Fails",
+        
+        description: "Why multi-hop OSPF over encrypted tunnels can forward LAN traffic successfully while gateway-originated flows fail because tunnel /32 source addresses lack a return route.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/ospf-tunnel-source-routing/";
+          
+        },
+      },{id: "post-when-ike-is-healthy-but-ipsec-is-broken-diagnosing-one-way-esp-black-holes",
+        
+          title: "When IKE Is Healthy but IPsec Is Broken: Diagnosing One-Way ESP Black Holes...",
+        
+        description: "Why an IPsec tunnel can remain established at the IKE control plane while ESP traffic silently fails in one direction, and how to diagnose the split correctly.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/one-way-ipsec-esp-blackholes/";
+          
+        },
+      },{id: "post-atomic-configuration-validation-and-control-plane-drift",
+        
+          title: "Atomic Configuration Validation and Control-Plane Drift",
+        
+        description: "How schema validation, transactional configuration pushes, and datastore drift can cause a single invalid field to block an entire network-device configuration.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/atomic-config-validation/";
+          
+        },
+      },{id: "post-diagnosing-transient-network-outages-with-fault-domain-isolation",
+        
+          title: "Diagnosing Transient Network Outages with Fault-Domain Isolation",
+        
+        description: "A vendor-neutral method for separating gateway, switching, wireless authentication, and logging failures during short-lived network disruptions.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/transient-network-outage-isolation/";
+          
+        },
+      },{id: "post-when-10gbase-t-sfp-modules-destabilize-ethernet-links",
+        
+          title: "When 10GBASE-T SFP+ Modules Destabilize Ethernet Links",
+        
+        description: "How SFP+ module identification, PHY mode selection, and repeated link-state transitions can collapse TCP throughput even when an interface nominally reports 10 Gb/s.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/sfp-plus-link-flaps/";
+          
+        },
+      },{id: "post-ipsec-phase-2-traffic-selectors-and-partial-tunnel-failures",
+        
+          title: "IPsec Phase 2 Traffic Selectors and Partial Tunnel Failures",
+        
+        description: "Why an IPsec tunnel can remain established while one subnet pair fails because routing state and negotiated traffic selectors are separate control-plane objects.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/ipsec-phase2-selectors/";
+          
+        },
+      },{id: "post-when-ups-calibration-state-becomes-a-shutdown-hazard-in-network-ups-tools",
+        
+          title: "When UPS Calibration State Becomes a Shutdown Hazard in Network UPS Tools",
+        
+        description: "A deep analysis of how stale NUT calibration state can turn a brief monitoring outage into an immediate infrastructure shutdown.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/nut-calibration-state-failure/";
+          
+        },
+      },{id: "post-diagnosing-wan-failures-beyond-physical-link-state",
+        
+          title: "Diagnosing WAN Failures Beyond Physical Link State",
+        
+        description: "A layered method for distinguishing Ethernet carrier loss, upstream path degradation, and application-level failure in redundant WAN designs.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/diagnosing-wan-failures/";
+          
+        },
+      },{id: "post-diagnosing-linux-critical-thermal-shutdowns",
+        
+          title: "Diagnosing Linux Critical Thermal Shutdowns",
+        
+        description: "A practical framework for distinguishing genuine silicon overheating from faulty thermal telemetry when Linux initiates a protective shutdown.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/linux-critical-thermal-shutdowns/";
+          
+        },
+      },{id: "post-wireguard-site-to-site-routing-with-selective-split-tunneling",
+        
+          title: "WireGuard Site-to-Site Routing with Selective Split Tunneling",
+        
+        description: "How WireGuard cryptokey routing, policy-based forwarding, firewall rules, NAT, and return paths combine in a selective site-to-site VPN design.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/wireguard-site-to-site-split-tunneling/";
+          
+        },
+      },{id: "post-building-and-transferring-docker-images-to-air-gapped-debian-systems",
+        
+          title: "Building and Transferring Docker Images to Air-Gapped Debian Systems",
+        
+        description: "A practical Debian-focused guide to Docker images, containers, offline Docker installation, and transferring workloads into air-gapped environments.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/docker-images-containers-air-gapped-debian/";
+          
+        },
+      },{id: "post-configuring-git-and-github-ssh-access-safely",
+        
+          title: "Configuring Git and GitHub SSH Access Safely",
+        
+        description: "A practical guide to configuring Git identity, setting up SSH authentication with GitHub, managing remotes, and pushing changes safely.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/configuring-git-github-ssh-access-safely/";
+          
+        },
+      },{id: "post-welcome-to-the-learning-hub",
+        
+          title: "Welcome to the Learning Hub",
+        
+        description: "A home for practical notes on infrastructure, networking, Linux, and automation.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/welcome-to-the-learning-hub/";
+          
+        },
+      },{
+        id: 'social-email',
+        title: 'email',
+        section: 'Socials',
+        handler: () => {
+          window.open("mailto:%68%61%72%73%68%76%65%72%6D%61%63%35@%67%6D%61%69%6C.%63%6F%6D", "_blank");
+        },
+      },{
+        id: 'social-github',
+        title: 'GitHub',
+        section: 'Socials',
+        handler: () => {
+          window.open("https://github.com/harshvermac5", "_blank");
+        },
+      },{
+        id: 'social-linkedin',
+        title: 'LinkedIn',
+        section: 'Socials',
+        handler: () => {
+          window.open("https://www.linkedin.com/in/harshvermac5", "_blank");
+        },
+      },{
+        id: 'social-rss',
+        title: 'RSS Feed',
+        section: 'Socials',
+        handler: () => {
+          window.open("/feed.xml", "_blank");
+        },
+      },{
+      id: 'light-theme',
+      title: 'Change theme to light',
+      description: 'Change the theme of the site to Light',
+      section: 'Theme',
+      handler: () => {
+        setThemeSetting("light");
+      },
+    },
+    {
+      id: 'dark-theme',
+      title: 'Change theme to dark',
+      description: 'Change the theme of the site to Dark',
+      section: 'Theme',
+      handler: () => {
+        setThemeSetting("dark");
+      },
+    },
+    {
+      id: 'system-theme',
+      title: 'Use system default theme',
+      description: 'Change the theme of the site to System Default',
+      section: 'Theme',
+      handler: () => {
+        setThemeSetting("system");
+      },
+    },];
+
+</script> <script src="/assets/al_search/js/shortcut-key.js"></script> </body> </html>

@@ -22,7 +22,7 @@ IDci: 10.20.0.0/16
 IDcr: 172.16.100.0/24
 proposal accepted
 IPsec SA installed
-</code></pre></div></div> <p>Absence of any proposal for the subnet is materially different from an explicit rejection. Messages such as <code class="language-plaintext highlighter-rouge">NO_PROPOSAL_CHOSEN</code>, identity mismatch, or unacceptable selector indicate negotiation occurred and failed. No matching Quick Mode or TS messages indicate that the selector may never have been proposed.</p> <h2 id="key-technical-insights">Key Technical Insights</h2> <ul> <li> <strong>“Tunnel up” is not a complete health signal.</strong> IKE liveness and per-selector IPsec state must be monitored separately.</li> <li> <strong>A route is not a Security Association.</strong> The FIB answers where traffic should go; the SPD/SAD determine whether IPsec can actually protect it.</li> <li> <strong>Multi-subnet tunnels can fail partially.</strong> One selector pair can remain healthy while another disappears.</li> <li> <strong>Initiation behavior matters.</strong> If only one peer generates a particular selector, the tunnel depends on that peer continuing to initiate or rekey it.</li> <li> <strong>No proposal and rejected proposal are different failure classes.</strong> Search IKE logs for evidence of the missing selector before changing firewall policy.</li> <li> <strong>Route-based does not mean selector-free.</strong> Implementations may hide selector behavior behind a virtual interface, broad traffic selectors, policy marks, or generated SPD entries.</li> <li> <strong>Firewall evidence must be placed in packet-processing order.</strong> If the required IPsec policy or SA does not exist, changing a later-stage firewall rule cannot create it.</li> </ul> <h2 id="prevention-strategies-and-takeaways">Prevention Strategies and Takeaways</h2> <ul> <li>Prefer <strong>IKEv2</strong> for new deployments and migrations.</li> <li>Explicitly document every intended local/remote selector pair, even when the platform presents a route-based abstraction.</li> <li>Verify how each implementation maps configured remote prefixes into <strong>routes, SPD entries, and IKE traffic selectors</strong>.</li> <li>Monitor per-Child-SA or per-Phase-2 state instead of relying only on peer-level tunnel status.</li> <li>During troubleshooting, compare <code class="language-plaintext highlighter-rouge">ip route</code>, <code class="language-plaintext highlighter-rouge">ip xfrm policy</code>, <code class="language-plaintext highlighter-rouge">ip xfrm state</code>, IKE negotiation logs, and ESP counters.</li> <li>Treat a missing selector as an IKE/SPD problem until evidence shows that the selector is installed and traffic reaches a later firewall stage.</li> <li>When interoperating across different implementations, test tunnel recovery after peer restarts, rekeys, configuration reloads, and loss of individual SAs.</li> </ul> <p>The durable lesson is simple: <strong>IPsec connectivity is established per security policy and SA, not merely per peer</strong>. A VPN can be cryptographically alive yet operationally incomplete. The fastest path to root cause is to inspect the exact selector state that protects the failing traffic.</p> </div> </article> <br> <hr> <br> <h2 class="text-3xl font-semibold mb-4 mt-12">Enjoy Reading This Article?</h2> <p class="mb-2">Here are some more articles you might like to read next:</p> <ul class="list-disc pl-7 my-3 space-y-2 marker:text-[var(--global-theme-color)]"> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/ospf-init-state-firewall/">Diagnosing OSPF Init State Across Encrypted Overlay Tunnels</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/ospf-tunnel-source-routing/">When OSPF Routes Work but Gateway-Originated Tunnel Traffic Fails</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/one-way-ipsec-esp-blackholes/">When IKE Is Healthy but IPsec Is Broken: Diagnosing One-Way ESP Black Holes</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/atomic-config-validation/">Atomic Configuration Validation and Control-Plane Drift</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/transient-network-outage-isolation/">Diagnosing Transient Network Outages with Fault-Domain Isolation</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/sfp-plus-link-flaps/">When 10GBASE-T SFP+ Modules Destabilize Ethernet Links</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/nut-calibration-state-failure/">When UPS Calibration State Becomes a Shutdown Hazard in Network UPS Tools</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/diagnosing-wan-failures/">Diagnosing WAN Failures Beyond Physical Link State</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/linux-critical-thermal-shutdowns/">Diagnosing Linux Critical Thermal Shutdowns</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/wireguard-site-to-site-split-tunneling/">WireGuard Site-to-Site Routing with Selective Split Tunneling</a> </li> </ul> </div> </div> <footer class="sticky-bottom mt-5" role="contentinfo"> <div class="container"> © Copyright 2026 Harsh Verma. Built with <a href="https://jekyllrb.com/" target="_blank" rel="external nofollow noopener">Jekyll</a> and <a href="https://github.com/alshedivat/al-folio" target="_blank" rel="external nofollow noopener">al-folio</a>. Hosted on GitHub Pages. </div> </footer> <script>
+</code></pre></div></div> <p>Absence of any proposal for the subnet is materially different from an explicit rejection. Messages such as <code class="language-plaintext highlighter-rouge">NO_PROPOSAL_CHOSEN</code>, identity mismatch, or unacceptable selector indicate negotiation occurred and failed. No matching Quick Mode or TS messages indicate that the selector may never have been proposed.</p> <h2 id="key-technical-insights">Key Technical Insights</h2> <ul> <li> <strong>“Tunnel up” is not a complete health signal.</strong> IKE liveness and per-selector IPsec state must be monitored separately.</li> <li> <strong>A route is not a Security Association.</strong> The FIB answers where traffic should go; the SPD/SAD determine whether IPsec can actually protect it.</li> <li> <strong>Multi-subnet tunnels can fail partially.</strong> One selector pair can remain healthy while another disappears.</li> <li> <strong>Initiation behavior matters.</strong> If only one peer generates a particular selector, the tunnel depends on that peer continuing to initiate or rekey it.</li> <li> <strong>No proposal and rejected proposal are different failure classes.</strong> Search IKE logs for evidence of the missing selector before changing firewall policy.</li> <li> <strong>Route-based does not mean selector-free.</strong> Implementations may hide selector behavior behind a virtual interface, broad traffic selectors, policy marks, or generated SPD entries.</li> <li> <strong>Firewall evidence must be placed in packet-processing order.</strong> If the required IPsec policy or SA does not exist, changing a later-stage firewall rule cannot create it.</li> </ul> <h2 id="prevention-strategies-and-takeaways">Prevention Strategies and Takeaways</h2> <ul> <li>Prefer <strong>IKEv2</strong> for new deployments and migrations.</li> <li>Explicitly document every intended local/remote selector pair, even when the platform presents a route-based abstraction.</li> <li>Verify how each implementation maps configured remote prefixes into <strong>routes, SPD entries, and IKE traffic selectors</strong>.</li> <li>Monitor per-Child-SA or per-Phase-2 state instead of relying only on peer-level tunnel status.</li> <li>During troubleshooting, compare <code class="language-plaintext highlighter-rouge">ip route</code>, <code class="language-plaintext highlighter-rouge">ip xfrm policy</code>, <code class="language-plaintext highlighter-rouge">ip xfrm state</code>, IKE negotiation logs, and ESP counters.</li> <li>Treat a missing selector as an IKE/SPD problem until evidence shows that the selector is installed and traffic reaches a later firewall stage.</li> <li>When interoperating across different implementations, test tunnel recovery after peer restarts, rekeys, configuration reloads, and loss of individual SAs.</li> </ul> <p>The durable lesson is simple: <strong>IPsec connectivity is established per security policy and SA, not merely per peer</strong>. A VPN can be cryptographically alive yet operationally incomplete. The fastest path to root cause is to inspect the exact selector state that protects the failing traffic.</p> </div> </article> <br> <hr> <br> <h2 class="text-3xl font-semibold mb-4 mt-12">Enjoy Reading This Article?</h2> <p class="mb-2">Here are some more articles you might like to read next:</p> <ul class="list-disc pl-7 my-3 space-y-2 marker:text-[var(--global-theme-color)]"> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/sip-alg-conntrack-state/">SIP ALG, Conntrack State, and Persistent NAT Rewriting</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/domain-policy-routing-dns-observation/">Why Domain-Based Policy Routing Fails When DNS Bypasses the Gateway</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/wireguard-site-to-site-nat-routing/">Site-to-Site WireGuard Through NAT: Cryptokey Routing, Policy Routes, and Firewall State</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/inter-vlan-iot-discovery-firewalling/">Inter-VLAN IoT Discovery and Stateful Firewall Isolation</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/ddns-cgnat-tunneled-wan/">Why Dynamic DNS Breaks Behind CGNAT and Tunneled WAN Interfaces</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/linux-poe-probe-failures/">When Hardware Probing Fails: Linux Device Initialization and PoE Control-Plane Errors</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/pppoe-nat-postrouting/">PPPoE and Source NAT: Why Translation Belongs After Routing</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/dns-search-suffix-resolution/">DNS Search Suffixes, Absolute Names, and Why Short Hostnames Fail Across VPNs</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/ospf-init-state-firewall/">Diagnosing OSPF Init State Across Encrypted Overlay Tunnels</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/ospf-tunnel-source-routing/">When OSPF Routes Work but Gateway-Originated Tunnel Traffic Fails</a> </li> </ul> </div> </div> <footer class="sticky-bottom mt-5" role="contentinfo"> <div class="container"> © Copyright 2026 Harsh Verma. Built with <a href="https://jekyllrb.com/" target="_blank" rel="external nofollow noopener">Jekyll</a> and <a href="https://github.com/alshedivat/al-folio" target="_blank" rel="external nofollow noopener">al-folio</a>. Hosted on GitHub Pages. </div> </footer> <script>
   window.alFolio = {
     compatBootstrap: false
   };
@@ -61,7 +61,95 @@ ninja.data = [{
           handler: () => {
             window.location.href = "/certs/";
           },
-        },{id: "post-diagnosing-ospf-init-state-across-encrypted-overlay-tunnels",
+        },{id: "post-sip-alg-conntrack-state-and-persistent-nat-rewriting",
+        
+          title: "SIP ALG, Conntrack State, and Persistent NAT Rewriting",
+        
+        description: "How SIP application-layer gateways interact with UDP connection tracking, NAT mappings, response routing, and stale helper state.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/sip-alg-conntrack-state/";
+          
+        },
+      },{id: "post-why-domain-based-policy-routing-fails-when-dns-bypasses-the-gateway",
+        
+          title: "Why Domain-Based Policy Routing Fails When DNS Bypasses the Gateway",
+        
+        description: "A deep technical analysis of DNS-observed policy routing, dynamic destination sets, encrypted DNS bypass, and deterministic multi-WAN forwarding design.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/domain-policy-routing-dns-observation/";
+          
+        },
+      },{id: "post-site-to-site-wireguard-through-nat-cryptokey-routing-policy-routes-and-firewall-state",
+        
+          title: "Site-to-Site WireGuard Through NAT: Cryptokey Routing, Policy Routes, and Firewall State",
+        
+        description: "A technical guide to building selective site-to-site WireGuard connectivity through NAT while preserving local Internet breakout and predictable firewall behavior.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/wireguard-site-to-site-nat-routing/";
+          
+        },
+      },{id: "post-inter-vlan-iot-discovery-and-stateful-firewall-isolation",
+        
+          title: "Inter-VLAN IoT Discovery and Stateful Firewall Isolation",
+        
+        description: "A standards-based analysis of why IoT discovery and direct device access fail across VLAN boundaries, and how to design narrowly scoped inter-VLAN firewall policy without defeating segmentation.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/inter-vlan-iot-discovery-firewalling/";
+          
+        },
+      },{id: "post-why-dynamic-dns-breaks-behind-cgnat-and-tunneled-wan-interfaces",
+        
+          title: "Why Dynamic DNS Breaks Behind CGNAT and Tunneled WAN Interfaces",
+        
+        description: "A deep technical analysis of why interface-bound Dynamic DNS can publish the wrong address behind CGNAT, GRE tunnels, and multi-stage WAN architectures.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/ddns-cgnat-tunneled-wan/";
+          
+        },
+      },{id: "post-when-hardware-probing-fails-linux-device-initialization-and-poe-control-plane-errors",
+        
+          title: "When Hardware Probing Fails: Linux Device Initialization and PoE Control-Plane Errors",
+        
+        description: "How failed Linux driver probing can leave PoE hardware unrepresented in userspace and cause otherwise unrelated configuration transactions to fail.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/linux-poe-probe-failures/";
+          
+        },
+      },{id: "post-pppoe-and-source-nat-why-translation-belongs-after-routing",
+        
+          title: "PPPoE and Source NAT: Why Translation Belongs After Routing",
+        
+        description: "A deep technical guide to how PPPoE creates an IP forwarding interface, how stateful source NAT binds flows in post-routing, and when to use SNAT versus masquerading.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/pppoe-nat-postrouting/";
+          
+        },
+      },{id: "post-dns-search-suffixes-absolute-names-and-why-short-hostnames-fail-across-vpns",
+        
+          title: "DNS Search Suffixes, Absolute Names, and Why Short Hostnames Fail Across VPNs",
+        
+        description: "A deep technical guide to DNS search lists, absolute names, resolver behavior, and why short hostnames can fail even when DNS and IP connectivity are healthy.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/dns-search-suffix-resolution/";
+          
+        },
+      },{id: "post-diagnosing-ospf-init-state-across-encrypted-overlay-tunnels",
         
           title: "Diagnosing OSPF Init State Across Encrypted Overlay Tunnels",
         

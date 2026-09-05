@@ -19,7 +19,7 @@
 10:34:39 swp23: link up 100baseTX full-duplex
 </code></pre></div></div> <p>If the reported outage occurred around 10:34:47, the flap is temporally relevant. Without endpoint identification, however, the engineer cannot claim it caused the reported outage.</p> <p>Linux-based collectors can preserve evidence with centralized logging:</p> <div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>journalctl <span class="nt">--since</span> <span class="s2">"2026-09-03 10:30:00"</span> <span class="nt">--until</span> <span class="s2">"2026-09-03 10:40:00"</span>
 <span class="nb">grep</span> <span class="nt">-Ei</span> <span class="s2">"handshake|psk|deauth|link down|link up"</span> /var/log/network-events.log
-</code></pre></div></div> <p>A collector prevents process restarts, reboots, or event storms from erasing the only copy of the incident window.</p> <h2 id="key-technical-insights">Key Technical Insights</h2> <ul> <li> <strong>Negative evidence is meaningful when collection is continuous.</strong> A complete timeline with no WAN, kernel, DHCP, or service transitions can strongly exonerate the gateway failure domain.</li> <li> <strong>Absence of evidence is weak when logs have gaps.</strong> Engineers must first prove that the logging source was alive and retaining data through the incident.</li> <li> <strong>Authentication failures are state-machine failures, not generic “WiFi drops.”</strong> Repeated 4-Way Handshake failures strongly suggest mismatched key material or another RSN negotiation problem.</li> <li> <strong>High event volume can destroy forensic history.</strong> Hundreds of authentication retries may rotate limited local buffers within minutes.</li> <li> <strong>A physical link flap is not automatically a site-wide outage.</strong> Causality depends on what is attached to the port and whether affected clients traverse it.</li> <li> <strong>Scope is as important as time.</strong> “All clients,” “wireless only,” and “one guest device” represent fundamentally different fault trees.</li> <li> <strong>Time ordering is a hard constraint.</strong> An event occurring twenty minutes after a symptom cannot be its initiating cause, although it may be a consequence or unrelated defect.</li> </ul> <h2 id="prevention-strategies-and-takeaways">Prevention Strategies and Takeaways</h2> <p>Design troubleshooting so the next transient event is measurable.</p> <ul> <li>Synchronize infrastructure clocks with reliable NTP sources so logs from gateways, switches, APs, DHCP servers, and collectors can be correlated precisely.</li> <li>Export logs to an external collector using <strong>RFC 5424</strong> formatting and secure transport such as <strong>RFC 5425 TLS</strong> when supported.</li> <li>Retain wireless authentication events long enough to detect persistent retry loops without sacrificing the incident window to circular rotation.</li> <li>Monitor gateway uptime, WAN carrier transitions, DHCP state, interface errors, and service restarts as separate signals.</li> <li>Track Ethernet link transitions with endpoint identity so a flap can be mapped to an actual client, AP, phone, camera, or downstream switch.</li> <li>Treat repeated 4-Way Handshake failures as client-level authentication faults until broader evidence proves otherwise.</li> <li>Require incident reports to include exact time, affected clients, wired-versus-wireless scope, and whether connectivity self-recovered.</li> <li>Separate <strong>confirmed faults</strong> from <strong>candidate correlations</strong> in every root-cause statement.</li> </ul> <p>The most defensible troubleshooting conclusion is often not “nothing failed,” but rather: <strong>the gateway and WAN remained healthy, while the available evidence places the fault below the gateway</strong>. That distinction reduces false root-cause assignments, focuses engineering effort on the correct failure domain, and turns short-lived network incidents into reproducible technical investigations.</p> </div> </article> <br> <hr> <br> <h2 class="text-3xl font-semibold mb-4 mt-12">Enjoy Reading This Article?</h2> <p class="mb-2">Here are some more articles you might like to read next:</p> <ul class="list-disc pl-7 my-3 space-y-2 marker:text-[var(--global-theme-color)]"> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/ospf-init-state-firewall/">Diagnosing OSPF Init State Across Encrypted Overlay Tunnels</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/ospf-tunnel-source-routing/">When OSPF Routes Work but Gateway-Originated Tunnel Traffic Fails</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/one-way-ipsec-esp-blackholes/">When IKE Is Healthy but IPsec Is Broken: Diagnosing One-Way ESP Black Holes</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/atomic-config-validation/">Atomic Configuration Validation and Control-Plane Drift</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/sfp-plus-link-flaps/">When 10GBASE-T SFP+ Modules Destabilize Ethernet Links</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/ipsec-phase2-selectors/">IPsec Phase 2 Traffic Selectors and Partial Tunnel Failures</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/nut-calibration-state-failure/">When UPS Calibration State Becomes a Shutdown Hazard in Network UPS Tools</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/diagnosing-wan-failures/">Diagnosing WAN Failures Beyond Physical Link State</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/linux-critical-thermal-shutdowns/">Diagnosing Linux Critical Thermal Shutdowns</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/wireguard-site-to-site-split-tunneling/">WireGuard Site-to-Site Routing with Selective Split Tunneling</a> </li> </ul> </div> </div> <footer class="sticky-bottom mt-5" role="contentinfo"> <div class="container"> © Copyright 2026 Harsh Verma. Built with <a href="https://jekyllrb.com/" target="_blank" rel="external nofollow noopener">Jekyll</a> and <a href="https://github.com/alshedivat/al-folio" target="_blank" rel="external nofollow noopener">al-folio</a>. Hosted on GitHub Pages. </div> </footer> <script>
+</code></pre></div></div> <p>A collector prevents process restarts, reboots, or event storms from erasing the only copy of the incident window.</p> <h2 id="key-technical-insights">Key Technical Insights</h2> <ul> <li> <strong>Negative evidence is meaningful when collection is continuous.</strong> A complete timeline with no WAN, kernel, DHCP, or service transitions can strongly exonerate the gateway failure domain.</li> <li> <strong>Absence of evidence is weak when logs have gaps.</strong> Engineers must first prove that the logging source was alive and retaining data through the incident.</li> <li> <strong>Authentication failures are state-machine failures, not generic “WiFi drops.”</strong> Repeated 4-Way Handshake failures strongly suggest mismatched key material or another RSN negotiation problem.</li> <li> <strong>High event volume can destroy forensic history.</strong> Hundreds of authentication retries may rotate limited local buffers within minutes.</li> <li> <strong>A physical link flap is not automatically a site-wide outage.</strong> Causality depends on what is attached to the port and whether affected clients traverse it.</li> <li> <strong>Scope is as important as time.</strong> “All clients,” “wireless only,” and “one guest device” represent fundamentally different fault trees.</li> <li> <strong>Time ordering is a hard constraint.</strong> An event occurring twenty minutes after a symptom cannot be its initiating cause, although it may be a consequence or unrelated defect.</li> </ul> <h2 id="prevention-strategies-and-takeaways">Prevention Strategies and Takeaways</h2> <p>Design troubleshooting so the next transient event is measurable.</p> <ul> <li>Synchronize infrastructure clocks with reliable NTP sources so logs from gateways, switches, APs, DHCP servers, and collectors can be correlated precisely.</li> <li>Export logs to an external collector using <strong>RFC 5424</strong> formatting and secure transport such as <strong>RFC 5425 TLS</strong> when supported.</li> <li>Retain wireless authentication events long enough to detect persistent retry loops without sacrificing the incident window to circular rotation.</li> <li>Monitor gateway uptime, WAN carrier transitions, DHCP state, interface errors, and service restarts as separate signals.</li> <li>Track Ethernet link transitions with endpoint identity so a flap can be mapped to an actual client, AP, phone, camera, or downstream switch.</li> <li>Treat repeated 4-Way Handshake failures as client-level authentication faults until broader evidence proves otherwise.</li> <li>Require incident reports to include exact time, affected clients, wired-versus-wireless scope, and whether connectivity self-recovered.</li> <li>Separate <strong>confirmed faults</strong> from <strong>candidate correlations</strong> in every root-cause statement.</li> </ul> <p>The most defensible troubleshooting conclusion is often not “nothing failed,” but rather: <strong>the gateway and WAN remained healthy, while the available evidence places the fault below the gateway</strong>. That distinction reduces false root-cause assignments, focuses engineering effort on the correct failure domain, and turns short-lived network incidents into reproducible technical investigations.</p> </div> </article> <br> <hr> <br> <h2 class="text-3xl font-semibold mb-4 mt-12">Enjoy Reading This Article?</h2> <p class="mb-2">Here are some more articles you might like to read next:</p> <ul class="list-disc pl-7 my-3 space-y-2 marker:text-[var(--global-theme-color)]"> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/sip-alg-conntrack-state/">SIP ALG, Conntrack State, and Persistent NAT Rewriting</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/domain-policy-routing-dns-observation/">Why Domain-Based Policy Routing Fails When DNS Bypasses the Gateway</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/wireguard-site-to-site-nat-routing/">Site-to-Site WireGuard Through NAT: Cryptokey Routing, Policy Routes, and Firewall State</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/inter-vlan-iot-discovery-firewalling/">Inter-VLAN IoT Discovery and Stateful Firewall Isolation</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/ddns-cgnat-tunneled-wan/">Why Dynamic DNS Breaks Behind CGNAT and Tunneled WAN Interfaces</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/linux-poe-probe-failures/">When Hardware Probing Fails: Linux Device Initialization and PoE Control-Plane Errors</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/pppoe-nat-postrouting/">PPPoE and Source NAT: Why Translation Belongs After Routing</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/dns-search-suffix-resolution/">DNS Search Suffixes, Absolute Names, and Why Short Hostnames Fail Across VPNs</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/ospf-init-state-firewall/">Diagnosing OSPF Init State Across Encrypted Overlay Tunnels</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/ospf-tunnel-source-routing/">When OSPF Routes Work but Gateway-Originated Tunnel Traffic Fails</a> </li> </ul> </div> </div> <footer class="sticky-bottom mt-5" role="contentinfo"> <div class="container"> © Copyright 2026 Harsh Verma. Built with <a href="https://jekyllrb.com/" target="_blank" rel="external nofollow noopener">Jekyll</a> and <a href="https://github.com/alshedivat/al-folio" target="_blank" rel="external nofollow noopener">al-folio</a>. Hosted on GitHub Pages. </div> </footer> <script>
   window.alFolio = {
     compatBootstrap: false
   };
@@ -58,7 +58,95 @@ ninja.data = [{
           handler: () => {
             window.location.href = "/certs/";
           },
-        },{id: "post-diagnosing-ospf-init-state-across-encrypted-overlay-tunnels",
+        },{id: "post-sip-alg-conntrack-state-and-persistent-nat-rewriting",
+        
+          title: "SIP ALG, Conntrack State, and Persistent NAT Rewriting",
+        
+        description: "How SIP application-layer gateways interact with UDP connection tracking, NAT mappings, response routing, and stale helper state.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/sip-alg-conntrack-state/";
+          
+        },
+      },{id: "post-why-domain-based-policy-routing-fails-when-dns-bypasses-the-gateway",
+        
+          title: "Why Domain-Based Policy Routing Fails When DNS Bypasses the Gateway",
+        
+        description: "A deep technical analysis of DNS-observed policy routing, dynamic destination sets, encrypted DNS bypass, and deterministic multi-WAN forwarding design.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/domain-policy-routing-dns-observation/";
+          
+        },
+      },{id: "post-site-to-site-wireguard-through-nat-cryptokey-routing-policy-routes-and-firewall-state",
+        
+          title: "Site-to-Site WireGuard Through NAT: Cryptokey Routing, Policy Routes, and Firewall State",
+        
+        description: "A technical guide to building selective site-to-site WireGuard connectivity through NAT while preserving local Internet breakout and predictable firewall behavior.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/wireguard-site-to-site-nat-routing/";
+          
+        },
+      },{id: "post-inter-vlan-iot-discovery-and-stateful-firewall-isolation",
+        
+          title: "Inter-VLAN IoT Discovery and Stateful Firewall Isolation",
+        
+        description: "A standards-based analysis of why IoT discovery and direct device access fail across VLAN boundaries, and how to design narrowly scoped inter-VLAN firewall policy without defeating segmentation.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/inter-vlan-iot-discovery-firewalling/";
+          
+        },
+      },{id: "post-why-dynamic-dns-breaks-behind-cgnat-and-tunneled-wan-interfaces",
+        
+          title: "Why Dynamic DNS Breaks Behind CGNAT and Tunneled WAN Interfaces",
+        
+        description: "A deep technical analysis of why interface-bound Dynamic DNS can publish the wrong address behind CGNAT, GRE tunnels, and multi-stage WAN architectures.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/ddns-cgnat-tunneled-wan/";
+          
+        },
+      },{id: "post-when-hardware-probing-fails-linux-device-initialization-and-poe-control-plane-errors",
+        
+          title: "When Hardware Probing Fails: Linux Device Initialization and PoE Control-Plane Errors",
+        
+        description: "How failed Linux driver probing can leave PoE hardware unrepresented in userspace and cause otherwise unrelated configuration transactions to fail.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/linux-poe-probe-failures/";
+          
+        },
+      },{id: "post-pppoe-and-source-nat-why-translation-belongs-after-routing",
+        
+          title: "PPPoE and Source NAT: Why Translation Belongs After Routing",
+        
+        description: "A deep technical guide to how PPPoE creates an IP forwarding interface, how stateful source NAT binds flows in post-routing, and when to use SNAT versus masquerading.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/pppoe-nat-postrouting/";
+          
+        },
+      },{id: "post-dns-search-suffixes-absolute-names-and-why-short-hostnames-fail-across-vpns",
+        
+          title: "DNS Search Suffixes, Absolute Names, and Why Short Hostnames Fail Across VPNs",
+        
+        description: "A deep technical guide to DNS search lists, absolute names, resolver behavior, and why short hostnames can fail even when DNS and IP connectivity are healthy.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/dns-search-suffix-resolution/";
+          
+        },
+      },{id: "post-diagnosing-ospf-init-state-across-encrypted-overlay-tunnels",
         
           title: "Diagnosing OSPF Init State Across Encrypted Overlay Tunnels",
         

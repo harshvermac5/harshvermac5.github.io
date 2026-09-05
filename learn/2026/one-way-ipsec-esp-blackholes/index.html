@@ -15,7 +15,7 @@ src 198.51.100.20 dst 203.0.113.10
     packets 0 bytes 0
 </code></pre></div></div> <p>If IKE logs simultaneously show successful DPD and normal rekeys, the evidence points to a <strong>data-plane asymmetry</strong>, not a dead-peer failure.</p> <p>Capture native ESP with:</p> <div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>tcpdump <span class="nt">-ni</span> eth0 <span class="s1">'proto 50 and host 198.51.100.20'</span>
 </code></pre></div></div> <p>For NAT traversal, inspect UDP/4500 instead:</p> <div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>tcpdump <span class="nt">-ni</span> eth0 <span class="s1">'udp port 4500 and host 198.51.100.20'</span>
-</code></pre></div></div> <p>The strongest isolation method is a simultaneous capture at both peers.</p> <ul> <li>If the sender’s outbound XFRM counter rises and ESP appears on its WAN, but the receiver never sees it, investigate the path: upstream filtering, CPE behavior, asymmetric routing, or NAT state.</li> <li>If the receiver sees ESP but its inbound SA counter does not rise, investigate SPI mismatch, stale SAD state, integrity failure, or anti-replay rejection.</li> <li>If the sender’s outbound counter does not rise, investigate routing, policy selection, tunnel-interface state, or traffic selectors before encryption.</li> </ul> <h2 id="key-technical-insights">Key Technical Insights</h2> <ul> <li> <strong>IKE health is not ESP health.</strong> A responsive IKE peer can coexist with a failed ESP direction.</li> <li> <strong>IPsec SAs are directional.</strong> Inbound and outbound counters are separate health signals.</li> <li> <strong>DPD detects peer liveness, not application reachability.</strong> Tuning DPD cannot repair a one-way ESP path when IKE remains reachable.</li> <li> <strong>Rekey events are transition points.</strong> Old and new SPIs may coexist briefly, so SPI correlation matters during intermittent failures.</li> <li> <strong>Zero inbound bytes are highly diagnostic.</strong> Growing outbound counters with a zero inbound peer should shift the investigation to directional packet-path analysis.</li> <li> <strong>Monitoring should test the protected path.</strong> Data-plane probes and SA counters complement IKE state.</li> </ul> <h2 id="prevention-strategies-and-takeaways">Prevention Strategies and Takeaways</h2> <ul> <li>Prefer <strong>IKEv2</strong> for new deployments because its Child SA lifecycle is cleaner than legacy IKEv1 Phase 1/Phase 2 handling.</li> <li>Monitor <strong>inbound and outbound ESP counters independently</strong> and alert on sustained directional divergence.</li> <li>Correlate SPIs at both peers during failures rather than trusting a single session-state indicator.</li> <li>Use simultaneous packet captures to determine whether loss occurs before encryption, in transit, or during inbound IPsec processing.</li> <li>Do not treat successful DPD as proof that protected application traffic is healthy.</li> <li>Avoid making critical services such as DNS entirely dependent on a remote tunnel without local fallback; this limits the blast radius of VPN failures.</li> <li>Preserve rekey timestamps, SA creation/deletion events, and XFRM counters so intermittent outages can be reconstructed.</li> </ul> <p>The operational rule is simple: <strong>an established IKE SA proves that key-management peers can communicate; only bidirectional ESP evidence proves that the VPN data path is working.</strong></p> </div> </article> <br> <hr> <br> <h2 class="text-3xl font-semibold mb-4 mt-12">Enjoy Reading This Article?</h2> <p class="mb-2">Here are some more articles you might like to read next:</p> <ul class="list-disc pl-7 my-3 space-y-2 marker:text-[var(--global-theme-color)]"> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/ospf-init-state-firewall/">Diagnosing OSPF Init State Across Encrypted Overlay Tunnels</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/ospf-tunnel-source-routing/">When OSPF Routes Work but Gateway-Originated Tunnel Traffic Fails</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/atomic-config-validation/">Atomic Configuration Validation and Control-Plane Drift</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/transient-network-outage-isolation/">Diagnosing Transient Network Outages with Fault-Domain Isolation</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/sfp-plus-link-flaps/">When 10GBASE-T SFP+ Modules Destabilize Ethernet Links</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/ipsec-phase2-selectors/">IPsec Phase 2 Traffic Selectors and Partial Tunnel Failures</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/nut-calibration-state-failure/">When UPS Calibration State Becomes a Shutdown Hazard in Network UPS Tools</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/diagnosing-wan-failures/">Diagnosing WAN Failures Beyond Physical Link State</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/linux-critical-thermal-shutdowns/">Diagnosing Linux Critical Thermal Shutdowns</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/wireguard-site-to-site-split-tunneling/">WireGuard Site-to-Site Routing with Selective Split Tunneling</a> </li> </ul> </div> </div> <footer class="sticky-bottom mt-5" role="contentinfo"> <div class="container"> © Copyright 2026 Harsh Verma. Built with <a href="https://jekyllrb.com/" target="_blank" rel="external nofollow noopener">Jekyll</a> and <a href="https://github.com/alshedivat/al-folio" target="_blank" rel="external nofollow noopener">al-folio</a>. Hosted on GitHub Pages. </div> </footer> <script>
+</code></pre></div></div> <p>The strongest isolation method is a simultaneous capture at both peers.</p> <ul> <li>If the sender’s outbound XFRM counter rises and ESP appears on its WAN, but the receiver never sees it, investigate the path: upstream filtering, CPE behavior, asymmetric routing, or NAT state.</li> <li>If the receiver sees ESP but its inbound SA counter does not rise, investigate SPI mismatch, stale SAD state, integrity failure, or anti-replay rejection.</li> <li>If the sender’s outbound counter does not rise, investigate routing, policy selection, tunnel-interface state, or traffic selectors before encryption.</li> </ul> <h2 id="key-technical-insights">Key Technical Insights</h2> <ul> <li> <strong>IKE health is not ESP health.</strong> A responsive IKE peer can coexist with a failed ESP direction.</li> <li> <strong>IPsec SAs are directional.</strong> Inbound and outbound counters are separate health signals.</li> <li> <strong>DPD detects peer liveness, not application reachability.</strong> Tuning DPD cannot repair a one-way ESP path when IKE remains reachable.</li> <li> <strong>Rekey events are transition points.</strong> Old and new SPIs may coexist briefly, so SPI correlation matters during intermittent failures.</li> <li> <strong>Zero inbound bytes are highly diagnostic.</strong> Growing outbound counters with a zero inbound peer should shift the investigation to directional packet-path analysis.</li> <li> <strong>Monitoring should test the protected path.</strong> Data-plane probes and SA counters complement IKE state.</li> </ul> <h2 id="prevention-strategies-and-takeaways">Prevention Strategies and Takeaways</h2> <ul> <li>Prefer <strong>IKEv2</strong> for new deployments because its Child SA lifecycle is cleaner than legacy IKEv1 Phase 1/Phase 2 handling.</li> <li>Monitor <strong>inbound and outbound ESP counters independently</strong> and alert on sustained directional divergence.</li> <li>Correlate SPIs at both peers during failures rather than trusting a single session-state indicator.</li> <li>Use simultaneous packet captures to determine whether loss occurs before encryption, in transit, or during inbound IPsec processing.</li> <li>Do not treat successful DPD as proof that protected application traffic is healthy.</li> <li>Avoid making critical services such as DNS entirely dependent on a remote tunnel without local fallback; this limits the blast radius of VPN failures.</li> <li>Preserve rekey timestamps, SA creation/deletion events, and XFRM counters so intermittent outages can be reconstructed.</li> </ul> <p>The operational rule is simple: <strong>an established IKE SA proves that key-management peers can communicate; only bidirectional ESP evidence proves that the VPN data path is working.</strong></p> </div> </article> <br> <hr> <br> <h2 class="text-3xl font-semibold mb-4 mt-12">Enjoy Reading This Article?</h2> <p class="mb-2">Here are some more articles you might like to read next:</p> <ul class="list-disc pl-7 my-3 space-y-2 marker:text-[var(--global-theme-color)]"> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/sip-alg-conntrack-state/">SIP ALG, Conntrack State, and Persistent NAT Rewriting</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/domain-policy-routing-dns-observation/">Why Domain-Based Policy Routing Fails When DNS Bypasses the Gateway</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/wireguard-site-to-site-nat-routing/">Site-to-Site WireGuard Through NAT: Cryptokey Routing, Policy Routes, and Firewall State</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/inter-vlan-iot-discovery-firewalling/">Inter-VLAN IoT Discovery and Stateful Firewall Isolation</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/ddns-cgnat-tunneled-wan/">Why Dynamic DNS Breaks Behind CGNAT and Tunneled WAN Interfaces</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/linux-poe-probe-failures/">When Hardware Probing Fails: Linux Device Initialization and PoE Control-Plane Errors</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/pppoe-nat-postrouting/">PPPoE and Source NAT: Why Translation Belongs After Routing</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/dns-search-suffix-resolution/">DNS Search Suffixes, Absolute Names, and Why Short Hostnames Fail Across VPNs</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/ospf-init-state-firewall/">Diagnosing OSPF Init State Across Encrypted Overlay Tunnels</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/ospf-tunnel-source-routing/">When OSPF Routes Work but Gateway-Originated Tunnel Traffic Fails</a> </li> </ul> </div> </div> <footer class="sticky-bottom mt-5" role="contentinfo"> <div class="container"> © Copyright 2026 Harsh Verma. Built with <a href="https://jekyllrb.com/" target="_blank" rel="external nofollow noopener">Jekyll</a> and <a href="https://github.com/alshedivat/al-folio" target="_blank" rel="external nofollow noopener">al-folio</a>. Hosted on GitHub Pages. </div> </footer> <script>
   window.alFolio = {
     compatBootstrap: false
   };
@@ -54,7 +54,95 @@ ninja.data = [{
           handler: () => {
             window.location.href = "/certs/";
           },
-        },{id: "post-diagnosing-ospf-init-state-across-encrypted-overlay-tunnels",
+        },{id: "post-sip-alg-conntrack-state-and-persistent-nat-rewriting",
+        
+          title: "SIP ALG, Conntrack State, and Persistent NAT Rewriting",
+        
+        description: "How SIP application-layer gateways interact with UDP connection tracking, NAT mappings, response routing, and stale helper state.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/sip-alg-conntrack-state/";
+          
+        },
+      },{id: "post-why-domain-based-policy-routing-fails-when-dns-bypasses-the-gateway",
+        
+          title: "Why Domain-Based Policy Routing Fails When DNS Bypasses the Gateway",
+        
+        description: "A deep technical analysis of DNS-observed policy routing, dynamic destination sets, encrypted DNS bypass, and deterministic multi-WAN forwarding design.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/domain-policy-routing-dns-observation/";
+          
+        },
+      },{id: "post-site-to-site-wireguard-through-nat-cryptokey-routing-policy-routes-and-firewall-state",
+        
+          title: "Site-to-Site WireGuard Through NAT: Cryptokey Routing, Policy Routes, and Firewall State",
+        
+        description: "A technical guide to building selective site-to-site WireGuard connectivity through NAT while preserving local Internet breakout and predictable firewall behavior.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/wireguard-site-to-site-nat-routing/";
+          
+        },
+      },{id: "post-inter-vlan-iot-discovery-and-stateful-firewall-isolation",
+        
+          title: "Inter-VLAN IoT Discovery and Stateful Firewall Isolation",
+        
+        description: "A standards-based analysis of why IoT discovery and direct device access fail across VLAN boundaries, and how to design narrowly scoped inter-VLAN firewall policy without defeating segmentation.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/inter-vlan-iot-discovery-firewalling/";
+          
+        },
+      },{id: "post-why-dynamic-dns-breaks-behind-cgnat-and-tunneled-wan-interfaces",
+        
+          title: "Why Dynamic DNS Breaks Behind CGNAT and Tunneled WAN Interfaces",
+        
+        description: "A deep technical analysis of why interface-bound Dynamic DNS can publish the wrong address behind CGNAT, GRE tunnels, and multi-stage WAN architectures.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/ddns-cgnat-tunneled-wan/";
+          
+        },
+      },{id: "post-when-hardware-probing-fails-linux-device-initialization-and-poe-control-plane-errors",
+        
+          title: "When Hardware Probing Fails: Linux Device Initialization and PoE Control-Plane Errors",
+        
+        description: "How failed Linux driver probing can leave PoE hardware unrepresented in userspace and cause otherwise unrelated configuration transactions to fail.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/linux-poe-probe-failures/";
+          
+        },
+      },{id: "post-pppoe-and-source-nat-why-translation-belongs-after-routing",
+        
+          title: "PPPoE and Source NAT: Why Translation Belongs After Routing",
+        
+        description: "A deep technical guide to how PPPoE creates an IP forwarding interface, how stateful source NAT binds flows in post-routing, and when to use SNAT versus masquerading.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/pppoe-nat-postrouting/";
+          
+        },
+      },{id: "post-dns-search-suffixes-absolute-names-and-why-short-hostnames-fail-across-vpns",
+        
+          title: "DNS Search Suffixes, Absolute Names, and Why Short Hostnames Fail Across VPNs",
+        
+        description: "A deep technical guide to DNS search lists, absolute names, resolver behavior, and why short hostnames can fail even when DNS and IP connectivity are healthy.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/dns-search-suffix-resolution/";
+          
+        },
+      },{id: "post-diagnosing-ospf-init-state-across-encrypted-overlay-tunnels",
         
           title: "Diagnosing OSPF Init State Across Encrypted Overlay Tunnels",
         
