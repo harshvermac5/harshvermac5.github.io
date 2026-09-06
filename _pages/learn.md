@@ -34,7 +34,14 @@ pagination:
 <div class="learning-grid" aria-label="Learning Hub articles">
 {% for post in postlist %}
 {% assign read_time = post.content | number_of_words | divided_by: 180 | plus: 1 %}
-<a class="learning-tile" href="{{ post.url | relative_url }}" data-dialog-id="article-{{ forloop.index0 }}">
+<article class="learning-tile">
+<button
+  class="learning-card-trigger"
+  type="button"
+  data-dialog-id="article-{{ forloop.index0 }}"
+  data-article-url="{{ post.url | relative_url }}"
+  aria-label="Preview {{ post.title }}"
+></button>
 <div class="article-topline">
 <time datetime="{{ post.date | date_to_xmlschema }}">{{ post.date | date: '%d %b %Y' }}</time>
 <span>{{ read_time }} min read</span>
@@ -46,8 +53,8 @@ pagination:
 {% for tag in post.tags limit: 3 %}<li>{{ tag }}</li>{% endfor %}
 </ul>
 {% endif %}
-<span class="text-link">Read article <span aria-hidden="true">→</span></span>
-</a>
+<a class="text-link learning-article-link" href="{{ post.url | relative_url }}">Read article <span aria-hidden="true">→</span></a>
+</article>
 
         <dialog class="portfolio-dialog article-dialog" id="article-{{ forloop.index0 }}" aria-labelledby="article-title-{{ forloop.index0 }}">
           <div class="dialog-shell">

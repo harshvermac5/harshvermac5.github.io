@@ -38,7 +38,10 @@
     trigger.addEventListener("click", (event) => {
       const dialog = document.getElementById(trigger.dataset.dialogId);
 
-      if (!dialog || typeof dialog.showModal !== "function") return;
+      if (!dialog || typeof dialog.showModal !== "function") {
+        if (trigger.dataset.articleUrl) window.location.href = trigger.dataset.articleUrl;
+        return;
+      }
 
       event.preventDefault();
       dialog.showModal();

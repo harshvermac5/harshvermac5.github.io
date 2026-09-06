@@ -404,6 +404,28 @@
   min-height: 19rem;
 }
 
+.learning-card-trigger {
+  background: transparent;
+  border: 0;
+  border-radius: inherit;
+  cursor: pointer;
+  inset: 0;
+  padding: 0;
+  position: absolute;
+  z-index: 1;
+}
+
+.learning-card-trigger:focus-visible {
+  outline: 3px solid var(--portfolio-accent);
+  outline-offset: 3px;
+}
+
+.learning-article-link {
+  position: relative;
+  width: fit-content;
+  z-index: 2;
+}
+
 .article-topline {
   color: var(--portfolio-muted);
   display: flex;
