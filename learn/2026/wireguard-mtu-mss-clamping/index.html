@@ -1,0 +1,386 @@
+<!DOCTYPE html> <html lang="en"> <head> <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"> <meta charset="utf-8"> <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no"> <meta http-equiv="X-UA-Compatible" content="IE=edge"> <title> Path MTU Discovery and TCP MSS Clamping Across WireGuard Tunnels | Harsh Verma </title> <meta name="author" content="Harsh Verma"> <meta name="description" content="A deep technical guide to PMTU black holes, TCP MSS behavior, and reliable packet sizing across encrypted UDP tunnels."> <meta name="keywords" content="server engineer, network engineer, linux, data center, infrastructure automation, portfolio"> <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https:; style-src 'self' 'unsafe-inline' https:; img-src 'self' data: https:; font-src 'self' data: https:; media-src 'self' https:; frame-src 'self' https:; connect-src 'self' https:;"> <style>
+  :root {
+    --max-content-width: 1100px;
+  }
+</style> <link rel="stylesheet" href="/assets/css/tailwind.css?v=50c64c15cbb9fd1ce6056fdb8bcb4b62"> <link defer rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.2.0/css/all.min.css" integrity="sha256-MVopmdyC2tYTiJ8wlktf0uh0v4NgT+vNdyVFepi7Q0c=" crossorigin="anonymous"> <link defer rel="stylesheet" href="https://cdn.jsdelivr.net/npm/academicons@1.9.5/css/academicons.min.css" integrity="sha256-SzrCOBJbGVFMahewkgjwnApaV2+av1DwMAA+/QGLyZw=" crossorigin="anonymous"> <link defer rel="stylesheet" href="https://cdn.jsdelivr.net/npm/scholar-icons@1.0.3/css/scholar-icons.css" integrity="sha256-VY3hHVj/hNX3fYG6wtbA6TcKJQl7+FthzGSyIB64klY=" crossorigin="anonymous"> <link defer rel="stylesheet" type="text/css" href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700|Roboto+Slab:100,300,400,500,700|Material+Icons&amp;display=swap"> <link defer rel="stylesheet" href="/assets/css/jekyll-pygments-themes-github.css?v=591dab5a4e56573bf4ef7fd332894c99" media="" id="highlight_theme_light"> <link rel="shortcut icon" href="data:image/svg+xml,&lt;svg%20xmlns=%22http://www.w3.org/2000/svg%22%20viewBox=%220%200%20100%20100%22&gt;&lt;text%20y=%22.9em%22%20font-size=%2290%22&gt;%F0%9F%96%A5%EF%B8%8F&lt;/text&gt;&lt;/svg&gt;"> <link rel="stylesheet" href="/assets/css/main.css?v=3116ba77db9ee1581d05bb3e86fbf7f1"> <link rel="canonical" href="https://harshvermac5.github.io/learn/2026/wireguard-mtu-mss-clamping/"> <script src="/assets/js/theme.js?v=5286c3e4c334d0ecb8fc0c40ff4fa7ec"></script> <link defer rel="stylesheet" href="/assets/css/jekyll-pygments-themes-native.css?v=5847e5ed4a4568527aa6cfab446049ca" media="none" id="highlight_theme_dark"> <script>
+    initTheme();
+  </script> </head> <body class="fixed-top-nav sticky-bottom-footer"> <header> <nav id="navbar" class="navbar navbar-light navbar-expand-sm fixed-top" role="navigation"> <div class="container"> <a class="navbar-brand title font-weight-lighter" href="/"> Harsh Verma </a> <button class="navbar-toggler collapsed navbar-toggler-main" type="button" data-nav-toggle="navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation"> <span class="sr-only">Toggle navigation</span> <span class="icon-bar top-bar"></span> <span class="icon-bar middle-bar"></span> <span class="icon-bar bottom-bar"></span> </button> <div class="collapse navbar-collapse navbar-collapse-main" id="navbarNav"> <ul class="navbar-nav navbar-menu-list flex-nowrap"> <li class="nav-item "> <a class="nav-link" href="/">About </a> </li> <li class="nav-item "> <a class="nav-link" href="/#projects">Projects </a> </li> <li class="nav-item active"> <a class="nav-link" href="/learn/index.html">Learning Hub </a> </li> <li class="nav-item "> <a class="nav-link" href="/certs/">Certifications </a> </li> <li class="nav-item"> <button id="search-toggle" type="button" title="Search" aria-label="Open search"> <span class="nav-link">ctrl k <i class="fa-solid fa-magnifying-glass"></i></span> </button> </li> <li class="toggle-container"> <button id="light-toggle" type="button" title="Change theme" aria-label="Change color theme"> <i class="fa-half-sun-moon" id="light-toggle-system"></i> <i class="fa-solid fa-moon" id="light-toggle-dark"></i> <i class="fa-solid fa-sun" id="light-toggle-light"></i> </button> </li> </ul> </div> </div> </nav> <progress id="progress" value="0"> <div class="progress-container"> <span class="progress-bar"></span> </div> </progress> </header> <div class="container mt-5" role="main"> <div class="post"> <header class="post-header"> <h1 class="post-title">Path MTU Discovery and TCP MSS Clamping Across WireGuard Tunnels</h1> <p class="post-meta"> Created on September 06, 2026 </p> <p class="post-tags"> <i class="fa-solid fa-calendar fa-sm"></i> 2026   ·   <i class="fa-solid fa-hashtag fa-sm"></i> wireguard   <i class="fa-solid fa-hashtag fa-sm"></i> mtu   <i class="fa-solid fa-hashtag fa-sm"></i> tcp   ·   <i class="fa-solid fa-tag fa-sm"></i> Networking </p> </header> <article class="post-content"> <div id="markdown-content"> <h2 id="problem-statement-or-learning-objective">Problem Statement or Learning Objective</h2> <p>Encrypted tunnels reduce the usable packet size available to inner traffic because every original IP packet is wrapped in additional protocol headers and cryptographic metadata. When endpoints continue transmitting packets sized for a 1500-byte path while the encapsulated path can carry less, the result may be fragmentation, packet loss, or a <strong>Path MTU Discovery black hole</strong>.</p> <p>The important engineering problem is not simply “set a smaller MTU.” It is understanding how <strong>Path MTU Discovery (PMTUD)</strong>, <strong>TCP Maximum Segment Size (MSS)</strong>, UDP encapsulation, and ICMP feedback interact. The most confusing failures are selective: DNS works, TCP handshakes succeed, and small requests complete, yet TLS sessions, large HTTP responses, uploads, or application APIs stall.</p> <p><a href="https://www.rfc-editor.org/rfc/rfc8201.html" rel="external nofollow noopener" target="_blank">RFC 8201 defines the Path MTU as “the minimum link MTU of all the links in a path.”</a> Once a tunnel is introduced, its encapsulation overhead becomes part of the packet-size budget that must fit within that minimum.</p> <h2 id="co-technical-subject">Co-Technical Subject</h2> <p><strong>Tunnel PMTU, TCP MSS advertisement, ICMP-based PMTUD, and packetization-layer MTU discovery for encrypted UDP overlays.</strong></p> <p>WireGuard is a useful concrete example because it carries encrypted IP packets over UDP and therefore exposes the interaction between inner MTU, outer PMTU, and TCP MSS clearly.</p> <h2 id="theoretical-foundation">Theoretical Foundation</h2> <p>Classical IPv4 PMTUD is defined by <strong>RFC 1191, November 1990</strong>. The sender transmits IPv4 packets with the <strong>Don’t Fragment (DF)</strong> bit set. If a router cannot forward a packet because the next-hop link MTU is smaller, it returns an ICMP Destination Unreachable, Fragmentation Needed message. The sender then lowers its estimate of the PMTU.</p> <p>IPv6 uses a related model defined by <strong>RFC 8201, July 2017</strong>. Routers do not fragment forwarded IPv6 packets. When a packet is too large, the router generates an <strong>ICMPv6 Packet Too Big</strong> message containing the next-hop MTU, as specified by <strong>RFC 4443, March 2006</strong>.</p> <p>The weakness is dependence on control-plane feedback. <a href="https://datatracker.ietf.org/doc/html/rfc2923" rel="external nofollow noopener" target="_blank">RFC 2923 notes that “Firewalls are often misconfigured to suppress all ICMP messages.”</a> If Fragmentation Needed or Packet Too Big messages disappear, a sender may continue transmitting oversized packets. Small packets pass, while larger packets repeatedly vanish. That is the classic PMTU black hole.</p> <p>TCP adds another mechanism: the <strong>MSS option</strong> exchanged in SYN and SYN/ACK packets. MSS limits TCP payload size, not total IP packet size. <a href="https://www.rfc-editor.org/rfc/rfc6691.html" rel="external nofollow noopener" target="_blank">RFC 6691 states that “The MSS counts only data octets in the segment.”</a> For ordinary headers, an IPv4 TCP MSS can be approximated as <code class="language-plaintext highlighter-rouge">PMTU - 20 - 20</code>; for IPv6, <code class="language-plaintext highlighter-rouge">PMTU - 40 - 20</code>. TCP or IP options must be handled separately by the sender.</p> <h2 id="mechanism-breakdown">Mechanism Breakdown</h2> <p>A tunnel changes the packet path by adding an outer transport envelope around an existing inner IP packet.</p> <p>For a WireGuard-style UDP tunnel, transport data contains a fixed tunnel header, encrypted payload, and authentication tag, then UDP and an outer IP header. The protocol specification shows <strong>16 bytes of transport header fields</strong> before the encrypted packet, while AEAD adds a <strong>16-byte authentication tag</strong>. All transport packets are carried over UDP. The resulting fixed overhead is therefore at least:</p> <div class="language-text highlighter-rouge"><div class="highlight"><pre class="highlight"><code>Outer IPv4: 20-byte IP + 8-byte UDP + 16-byte tunnel header + 16-byte AEAD tag = 60 bytes
+Outer IPv6: 40-byte IP + 8-byte UDP + 16-byte tunnel header + 16-byte AEAD tag = 80 bytes
+</code></pre></div></div> <p>The protocol may also pad encrypted inner packets, and additional technologies such as PPPoE, provider tunnels, or nested VPNs can reduce effective PMTU further. The correct inner MTU is therefore a property of the complete path, not merely the local Ethernet interface.</p> <p>The failure sequence typically looks like this:</p> <ul> <li>An endpoint sends a TCP SYN through the tunnel. The packet is small and succeeds.</li> <li>The remote endpoint returns SYN/ACK. The three-way handshake completes normally.</li> <li>One endpoint then emits a near-MSS-sized TCP segment.</li> <li>Tunnel encapsulation expands the packet beyond the outer PMTU.</li> <li>A router drops the packet and should return an ICMP size error.</li> <li>If that ICMP message is filtered, lost, or not associated correctly with the tunnel flow, the sender never learns the smaller PMTU.</li> <li>TCP retransmits the same oversized data, producing an apparent application stall rather than a total connectivity failure.</li> </ul> <p><a href="https://www.rfc-editor.org/rfc/rfc8201.html" rel="external nofollow noopener" target="_blank">RFC 8201 describes this exact symptom: a connection can complete the TCP handshake and then hang when data is transferred.</a></p> <p><strong>MSS clamping</strong> changes the TCP MSS advertised during connection establishment so endpoints never create TCP payloads that would exceed the known tunnel PMTU. Because MSS is directional, SYN and SYN/ACK traffic should both be considered.</p> <h2 id="industry-standards-reference">Industry Standards Reference</h2> <p>The relevant standards form a progression from classical PMTUD to more robust packetization-layer discovery:</p> <ul> <li> <strong>RFC 1191 — Path MTU Discovery, 1990:</strong> defines IPv4 PMTUD using DF and ICMP Fragmentation Needed feedback.</li> <li> <strong>RFC 2923 — TCP Problems with Path MTU Discovery, 2000:</strong> documents PMTU black holes and TCP-specific failure modes.</li> <li> <strong>RFC 4443 — ICMPv6, 2006:</strong> defines ICMPv6 Packet Too Big behavior.</li> <li> <strong>RFC 4821 — Packetization Layer Path MTU Discovery, 2007:</strong> defines probe-based discovery that does not depend entirely on ICMP.</li> <li> <strong>RFC 6691 — TCP Options and Maximum Segment Size, 2012:</strong> clarifies correct MSS calculation and interaction with header options.</li> <li> <strong>RFC 8085 / BCP 145 — UDP Usage Guidelines, 2017:</strong> provides message-size guidance for UDP applications and tunnels.</li> <li> <strong>RFC 8201 — IPv6 Path MTU Discovery, 2017:</strong> updates IPv6 PMTUD behavior.</li> <li> <strong>RFC 8899 — Datagram PLPMTUD, 2020:</strong> extends robust packetization-layer discovery to datagram transports.</li> </ul> <p><a href="https://datatracker.ietf.org/doc/html/rfc4821" rel="external nofollow noopener" target="_blank">RFC 4821 explains that PLPMTUD “does not depend on the delivery of ICMP messages.”</a> RFC 8899 extends that design to datagram packetization layers, making it especially relevant to modern UDP-based tunnels.</p> <h2 id="practical-examples-and-evidence">Practical Examples and Evidence</h2> <p>On Linux, first inspect the configured tunnel MTU and routing decision:</p> <div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>ip <span class="nb">link </span>show wg0
+ip route get 198.51.100.10
+</code></pre></div></div> <p>Probe candidate IPv4 packet sizes with DF set. An ICMP payload of 1372 bytes plus 20 bytes of IPv4 header and 8 bytes of ICMP header produces a 1400-byte IPv4 packet:</p> <div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>ping <span class="nt">-M</span> <span class="k">do</span> <span class="nt">-s</span> 1372 198.51.100.10
+</code></pre></div></div> <p>For broader path testing, <code class="language-plaintext highlighter-rouge">tracepath</code> can expose discovered PMTU changes:</p> <div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>tracepath 198.51.100.10
+</code></pre></div></div> <p>Packet capture is often more conclusive than application logs:</p> <div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>tcpdump <span class="nt">-ni</span> any <span class="s1">'icmp or icmp6 or tcp'</span>
+</code></pre></div></div> <p>Evidence consistent with a PMTU black hole includes a successful SYN/SYN-ACK/ACK exchange followed by repeated retransmission of the same large TCP sequence range, with no corresponding ICMP Fragmentation Needed or ICMPv6 Packet Too Big message reaching the sender.</p> <p>A standards-aligned Linux firewall can clamp TCP MSS to route-derived PMTU using nftables:</p> <div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>nft add rule inet mangle forward tcp flags syn tcp option maxseg size <span class="nb">set </span>rt mtu
+</code></pre></div></div> <p>The nftables documentation states that <code class="language-plaintext highlighter-rouge">rt mtu</code> uses route information learned through PMTUD. A fixed MSS can also be applied when the effective tunnel PMTU is known and deterministic:</p> <div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>nft add rule inet mangle forward tcp flags syn tcp option maxseg size <span class="nb">set </span>1360
+</code></pre></div></div> <p>A static value should be derived from measured PMTU and header requirements, not copied from another environment.</p> <h2 id="key-technical-insights">Key Technical Insights</h2> <ul> <li> <strong>Selective failure is diagnostic evidence.</strong> If small flows work but large TLS or HTTP transfers stall, investigate PMTU before blaming DNS, routing, or application-layer policy.</li> <li> <strong>MSS is not MTU.</strong> MSS constrains TCP payload only. UDP, ICMP, QUIC, and non-TCP traffic do not benefit from TCP MSS clamping.</li> <li> <strong>Clamping hides symptoms but does not repair PMTUD.</strong> Restoring valid ICMP size feedback is architecturally preferable where possible.</li> <li> <strong>Tunnel overhead is cumulative.</strong> Outer IPv6, PPPoE, nested tunnels, carrier overlays, and additional encapsulation all consume packet budget.</li> <li> <strong>Asymmetric paths complicate diagnosis.</strong> Each direction can have a different PMTU and therefore a different safe MSS.</li> <li> <strong>A very low MSS is safe but inefficient.</strong> Excessively small segments increase packet rate, per-packet processing, interrupt load, and protocol overhead.</li> <li> <strong>UDP overlays need their own sizing strategy.</strong> RFC 8899 exists because TCP-specific techniques cannot solve datagram PMTU problems generically.</li> </ul> <h2 id="prevention-strategies-and-takeaways">Prevention Strategies and Takeaways</h2> <ul> <li>Measure the effective PMTU across the real production path rather than assuming 1500 bytes end to end.</li> <li>Permit required ICMP Fragmentation Needed and ICMPv6 Packet Too Big messages through security policy; do not treat all ICMP as expendable.</li> <li>Set tunnel interface MTU with enough headroom for outer IP, UDP, tunnel metadata, cryptographic authentication, padding, and any additional encapsulation.</li> <li>Use MSS clamping for TCP when the tunnel PMTU is lower than endpoints can reliably discover, but derive the value from the path.</li> <li>Validate both directions because PMTU and MSS can be asymmetric.</li> <li>Capture SYN packets and large retransmissions to prove whether MSS advertisement and PMTU behavior match the design.</li> <li>Prefer PLPMTUD/DPLPMTUD-capable transports where available because they recover more robustly when ICMP feedback is unreliable.</li> </ul> <p>The central principle is simple: <strong>an encrypted tunnel does not create more MTU; it consumes it</strong>. Reliable tunnel performance depends on ensuring that packetization at the inner layer respects the smallest usable size of the encapsulated path.</p> </div> </article> <br> <hr> <br> <h2 class="text-3xl font-semibold mb-4 mt-12">Enjoy Reading This Article?</h2> <p class="mb-2">Here are some more articles you might like to read next:</p> <ul class="list-disc pl-7 my-3 space-y-2 marker:text-[var(--global-theme-color)]"> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/dhcpv6-prefix-delegation/">DHCPv6 Prefix Delegation: From WAN Lease to LAN Prefix Activation</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/snmp-switch-monitoring/">Engineering Reliable SNMP Monitoring for Network Switches</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/sip-alg-conntrack-state/">SIP ALG, Conntrack State, and Persistent NAT Rewriting</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/domain-policy-routing-dns-observation/">Why Domain-Based Policy Routing Fails When DNS Bypasses the Gateway</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/wireguard-site-to-site-nat-routing/">Site-to-Site WireGuard Through NAT: Cryptokey Routing, Policy Routes, and Firewall State</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/inter-vlan-iot-discovery-firewalling/">Inter-VLAN IoT Discovery and Stateful Firewall Isolation</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/ddns-cgnat-tunneled-wan/">Why Dynamic DNS Breaks Behind CGNAT and Tunneled WAN Interfaces</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/linux-poe-probe-failures/">When Hardware Probing Fails: Linux Device Initialization and PoE Control-Plane Errors</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/pppoe-nat-postrouting/">PPPoE and Source NAT: Why Translation Belongs After Routing</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/dns-search-suffix-resolution/">DNS Search Suffixes, Absolute Names, and Why Short Hostnames Fail Across VPNs</a> </li> </ul> </div> </div> <footer class="sticky-bottom mt-5" role="contentinfo"> <div class="container"> © Copyright 2026 Harsh Verma. Built with <a href="https://jekyllrb.com/" target="_blank" rel="external nofollow noopener">Jekyll</a> and <a href="https://github.com/alshedivat/al-folio" target="_blank" rel="external nofollow noopener">al-folio</a>. Hosted on GitHub Pages. </div> </footer> <script>
+  window.alFolio = {
+    compatBootstrap: false
+  };
+</script> <script src="/assets/js/nav-toggle.js?v=141bd79a73ebc0f0b6ea58e440ae79fc"></script> <script defer src="https://cdn.jsdelivr.net/npm/masonry-layout@4.2.2/dist/masonry.pkgd.min.js" integrity="sha256-Nn1q/fx0H7SNLZMQ5Hw5JLaTRZp0yILA/FRexe19VdI=" crossorigin="anonymous"></script> <script defer src="https://cdn.jsdelivr.net/npm/imagesloaded@5.0.0/imagesloaded.pkgd.min.js" integrity="sha256-htrLFfZJ6v5udOG+3kNLINIKh2gvoKqwEhHYfTTMICc=" crossorigin="anonymous"></script> <script defer src="/assets/js/masonry.js?v=e49affc7bd2646f6acdad1dbe02c2359" type="text/javascript"></script> <script defer type="text/javascript" id="MathJax-script" src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-mml-chtml.js" integrity="sha256-MASABpB4tYktI2Oitl4t+78w/lyA+D7b/s9GEP0JOGI=" crossorigin="anonymous"></script> <script src="/assets/al_math/js/mathjax-setup.js"></script> <script src="/assets/js/tooltips-setup.js?v=fe487e99db6c43751e6e7bdb2d6a0611"></script> <script src="/assets/js/no_defer.js?v=53b1b1a645525975c963ce8bf8bfefcf"></script> <script defer src="/assets/js/common.js?v=87baac90f765f2f3362dcf6aaf312a8a"></script> <script defer src="/assets/js/copy_code.js?v=c8a01c11a92744d44b093fc3bda915df" type="text/javascript"></script> <script defer src="/assets/js/jupyter_new_tab.js?v=896d254890d9b47f0281f63bfccf0dee"></script> <script async src="https://d1bxh8uas1mnw7.cloudfront.net/assets/embed.js"></script> <script async src="https://badge.dimensions.ai/badge.js"></script> <script defer src="https://cdn.jsdelivr.net/npm/medium-zoom@1.1.0/dist/medium-zoom.min.js" integrity="sha256-ZgMyDAIYDYGxbcpJcfUnYwNevG/xi9OHKaR/8GK+jWc=" crossorigin="anonymous"></script> <script defer src="/assets/al_img_tools/js/zoom.js"></script> <script defer src="/assets/js/progress-bar.js?v=499464c5c63ced6cf7ad62509f1e2610" type="text/javascript"></script> <script src="https://cdn.jsdelivr.net/npm/vanilla-back-to-top@7.2.1/dist/vanilla-back-to-top.min.js" integrity="sha256-uMJJ3EoTyfRBoTbR+lrfu1uRQ87RZG8AR3cVNuQVeFg=" crossorigin="anonymous"></script> <script>
+    addBackToTop();
+  </script> <script type="module" src="/assets/al_search/js/search/ninja-keys.min.js"></script> <ninja-keys hidebreadcrumbs noautoloadmdicons placeholder="Type to start searching"></ninja-keys> <script src="/assets/al_search/js/search-setup.js"></script> <script>
+// get the ninja-keys element
+const ninja = document.querySelector('ninja-keys');
+
+// add the home and posts menu items
+ninja.data = [{
+    id: "nav-about",
+    title: "About",
+    section: "Navigation",
+    handler: () => {
+      window.location.href = "/";
+    },
+  },{id: "nav-projects",
+          title: "Projects",
+          description: "",
+          section: "Navigation",
+          handler: () => {
+            window.location.href = "/#projects";
+          },
+        },{id: "nav-learning-hub",
+          title: "Learning Hub",
+          description: "Practical notes on servers, networking, Linux, security, and infrastructure automation.",
+          section: "Navigation",
+          handler: () => {
+            window.location.href = "/learn/index.html";
+          },
+        },{id: "nav-certifications",
+          title: "Certifications",
+          description: "Professional certifications across networking, cybersecurity, and infrastructure.",
+          section: "Navigation",
+          handler: () => {
+            window.location.href = "/certs/";
+          },
+        },{id: "post-dhcpv6-prefix-delegation-from-wan-lease-to-lan-prefix-activation",
+        
+          title: "DHCPv6 Prefix Delegation: From WAN Lease to LAN Prefix Activation",
+        
+        description: "A deep technical guide to DHCPv6 Prefix Delegation, including IA_PD state, renewal timers, downstream /64 assignment, Router Advertisements, and failure isolation.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/dhcpv6-prefix-delegation/";
+          
+        },
+      },{id: "post-path-mtu-discovery-and-tcp-mss-clamping-across-wireguard-tunnels",
+        
+          title: "Path MTU Discovery and TCP MSS Clamping Across WireGuard Tunnels",
+        
+        description: "A deep technical guide to PMTU black holes, TCP MSS behavior, and reliable packet sizing across encrypted UDP tunnels.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/wireguard-mtu-mss-clamping/";
+          
+        },
+      },{id: "post-engineering-reliable-snmp-monitoring-for-network-switches",
+        
+          title: "Engineering Reliable SNMP Monitoring for Network Switches",
+        
+        description: "A standards-based guide to SNMP polling, MIB/OID structure, SNMPv3 security, interface counters, and reliable switch observability.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/snmp-switch-monitoring/";
+          
+        },
+      },{id: "post-sip-alg-conntrack-state-and-persistent-nat-rewriting",
+        
+          title: "SIP ALG, Conntrack State, and Persistent NAT Rewriting",
+        
+        description: "How SIP application-layer gateways interact with UDP connection tracking, NAT mappings, response routing, and stale helper state.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/sip-alg-conntrack-state/";
+          
+        },
+      },{id: "post-why-domain-based-policy-routing-fails-when-dns-bypasses-the-gateway",
+        
+          title: "Why Domain-Based Policy Routing Fails When DNS Bypasses the Gateway",
+        
+        description: "A deep technical analysis of DNS-observed policy routing, dynamic destination sets, encrypted DNS bypass, and deterministic multi-WAN forwarding design.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/domain-policy-routing-dns-observation/";
+          
+        },
+      },{id: "post-site-to-site-wireguard-through-nat-cryptokey-routing-policy-routes-and-firewall-state",
+        
+          title: "Site-to-Site WireGuard Through NAT: Cryptokey Routing, Policy Routes, and Firewall State",
+        
+        description: "A technical guide to building selective site-to-site WireGuard connectivity through NAT while preserving local Internet breakout and predictable firewall behavior.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/wireguard-site-to-site-nat-routing/";
+          
+        },
+      },{id: "post-inter-vlan-iot-discovery-and-stateful-firewall-isolation",
+        
+          title: "Inter-VLAN IoT Discovery and Stateful Firewall Isolation",
+        
+        description: "A standards-based analysis of why IoT discovery and direct device access fail across VLAN boundaries, and how to design narrowly scoped inter-VLAN firewall policy without defeating segmentation.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/inter-vlan-iot-discovery-firewalling/";
+          
+        },
+      },{id: "post-why-dynamic-dns-breaks-behind-cgnat-and-tunneled-wan-interfaces",
+        
+          title: "Why Dynamic DNS Breaks Behind CGNAT and Tunneled WAN Interfaces",
+        
+        description: "A deep technical analysis of why interface-bound Dynamic DNS can publish the wrong address behind CGNAT, GRE tunnels, and multi-stage WAN architectures.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/ddns-cgnat-tunneled-wan/";
+          
+        },
+      },{id: "post-when-hardware-probing-fails-linux-device-initialization-and-poe-control-plane-errors",
+        
+          title: "When Hardware Probing Fails: Linux Device Initialization and PoE Control-Plane Errors",
+        
+        description: "How failed Linux driver probing can leave PoE hardware unrepresented in userspace and cause otherwise unrelated configuration transactions to fail.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/linux-poe-probe-failures/";
+          
+        },
+      },{id: "post-pppoe-and-source-nat-why-translation-belongs-after-routing",
+        
+          title: "PPPoE and Source NAT: Why Translation Belongs After Routing",
+        
+        description: "A deep technical guide to how PPPoE creates an IP forwarding interface, how stateful source NAT binds flows in post-routing, and when to use SNAT versus masquerading.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/pppoe-nat-postrouting/";
+          
+        },
+      },{id: "post-dns-search-suffixes-absolute-names-and-why-short-hostnames-fail-across-vpns",
+        
+          title: "DNS Search Suffixes, Absolute Names, and Why Short Hostnames Fail Across VPNs",
+        
+        description: "A deep technical guide to DNS search lists, absolute names, resolver behavior, and why short hostnames can fail even when DNS and IP connectivity are healthy.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/dns-search-suffix-resolution/";
+          
+        },
+      },{id: "post-diagnosing-ospf-init-state-across-encrypted-overlay-tunnels",
+        
+          title: "Diagnosing OSPF Init State Across Encrypted Overlay Tunnels",
+        
+        description: "How asymmetric OSPF Hello filtering can leave encrypted tunnels healthy while dynamic route exchange silently fails.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/ospf-init-state-firewall/";
+          
+        },
+      },{id: "post-when-ospf-routes-work-but-gateway-originated-tunnel-traffic-fails",
+        
+          title: "When OSPF Routes Work but Gateway-Originated Tunnel Traffic Fails",
+        
+        description: "Why multi-hop OSPF over encrypted tunnels can forward LAN traffic successfully while gateway-originated flows fail because tunnel /32 source addresses lack a return route.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/ospf-tunnel-source-routing/";
+          
+        },
+      },{id: "post-when-ike-is-healthy-but-ipsec-is-broken-diagnosing-one-way-esp-black-holes",
+        
+          title: "When IKE Is Healthy but IPsec Is Broken: Diagnosing One-Way ESP Black Holes...",
+        
+        description: "Why an IPsec tunnel can remain established at the IKE control plane while ESP traffic silently fails in one direction, and how to diagnose the split correctly.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/one-way-ipsec-esp-blackholes/";
+          
+        },
+      },{id: "post-atomic-configuration-validation-and-control-plane-drift",
+        
+          title: "Atomic Configuration Validation and Control-Plane Drift",
+        
+        description: "How schema validation, transactional configuration pushes, and datastore drift can cause a single invalid field to block an entire network-device configuration.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/atomic-config-validation/";
+          
+        },
+      },{id: "post-diagnosing-transient-network-outages-with-fault-domain-isolation",
+        
+          title: "Diagnosing Transient Network Outages with Fault-Domain Isolation",
+        
+        description: "A vendor-neutral method for separating gateway, switching, wireless authentication, and logging failures during short-lived network disruptions.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/transient-network-outage-isolation/";
+          
+        },
+      },{id: "post-when-10gbase-t-sfp-modules-destabilize-ethernet-links",
+        
+          title: "When 10GBASE-T SFP+ Modules Destabilize Ethernet Links",
+        
+        description: "How SFP+ module identification, PHY mode selection, and repeated link-state transitions can collapse TCP throughput even when an interface nominally reports 10 Gb/s.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/sfp-plus-link-flaps/";
+          
+        },
+      },{id: "post-ipsec-phase-2-traffic-selectors-and-partial-tunnel-failures",
+        
+          title: "IPsec Phase 2 Traffic Selectors and Partial Tunnel Failures",
+        
+        description: "Why an IPsec tunnel can remain established while one subnet pair fails because routing state and negotiated traffic selectors are separate control-plane objects.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/ipsec-phase2-selectors/";
+          
+        },
+      },{id: "post-when-ups-calibration-state-becomes-a-shutdown-hazard-in-network-ups-tools",
+        
+          title: "When UPS Calibration State Becomes a Shutdown Hazard in Network UPS Tools",
+        
+        description: "A deep analysis of how stale NUT calibration state can turn a brief monitoring outage into an immediate infrastructure shutdown.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/nut-calibration-state-failure/";
+          
+        },
+      },{id: "post-diagnosing-wan-failures-beyond-physical-link-state",
+        
+          title: "Diagnosing WAN Failures Beyond Physical Link State",
+        
+        description: "A layered method for distinguishing Ethernet carrier loss, upstream path degradation, and application-level failure in redundant WAN designs.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/diagnosing-wan-failures/";
+          
+        },
+      },{id: "post-diagnosing-linux-critical-thermal-shutdowns",
+        
+          title: "Diagnosing Linux Critical Thermal Shutdowns",
+        
+        description: "A practical framework for distinguishing genuine silicon overheating from faulty thermal telemetry when Linux initiates a protective shutdown.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/linux-critical-thermal-shutdowns/";
+          
+        },
+      },{id: "post-wireguard-site-to-site-routing-with-selective-split-tunneling",
+        
+          title: "WireGuard Site-to-Site Routing with Selective Split Tunneling",
+        
+        description: "How WireGuard cryptokey routing, policy-based forwarding, firewall rules, NAT, and return paths combine in a selective site-to-site VPN design.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/wireguard-site-to-site-split-tunneling/";
+          
+        },
+      },{id: "post-building-and-transferring-docker-images-to-air-gapped-debian-systems",
+        
+          title: "Building and Transferring Docker Images to Air-Gapped Debian Systems",
+        
+        description: "A practical Debian-focused guide to Docker images, containers, offline Docker installation, and transferring workloads into air-gapped environments.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/docker-images-containers-air-gapped-debian/";
+          
+        },
+      },{id: "post-configuring-git-and-github-ssh-access-safely",
+        
+          title: "Configuring Git and GitHub SSH Access Safely",
+        
+        description: "A practical guide to configuring Git identity, setting up SSH authentication with GitHub, managing remotes, and pushing changes safely.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/configuring-git-github-ssh-access-safely/";
+          
+        },
+      },{id: "post-welcome-to-the-learning-hub",
+        
+          title: "Welcome to the Learning Hub",
+        
+        description: "A home for practical notes on infrastructure, networking, Linux, and automation.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/welcome-to-the-learning-hub/";
+          
+        },
+      },{
+        id: 'social-email',
+        title: 'email',
+        section: 'Socials',
+        handler: () => {
+          window.open("mailto:%68%61%72%73%68%76%65%72%6D%61%63%35@%67%6D%61%69%6C.%63%6F%6D", "_blank");
+        },
+      },{
+        id: 'social-github',
+        title: 'GitHub',
+        section: 'Socials',
+        handler: () => {
+          window.open("https://github.com/harshvermac5", "_blank");
+        },
+      },{
+        id: 'social-linkedin',
+        title: 'LinkedIn',
+        section: 'Socials',
+        handler: () => {
+          window.open("https://www.linkedin.com/in/harshvermac5", "_blank");
+        },
+      },{
+        id: 'social-rss',
+        title: 'RSS Feed',
+        section: 'Socials',
+        handler: () => {
+          window.open("/feed.xml", "_blank");
+        },
+      },{
+      id: 'light-theme',
+      title: 'Change theme to light',
+      description: 'Change the theme of the site to Light',
+      section: 'Theme',
+      handler: () => {
+        setThemeSetting("light");
+      },
+    },
+    {
+      id: 'dark-theme',
+      title: 'Change theme to dark',
+      description: 'Change the theme of the site to Dark',
+      section: 'Theme',
+      handler: () => {
+        setThemeSetting("dark");
+      },
+    },
+    {
+      id: 'system-theme',
+      title: 'Use system default theme',
+      description: 'Change the theme of the site to System Default',
+      section: 'Theme',
+      handler: () => {
+        setThemeSetting("system");
+      },
+    },];
+
+</script> <script src="/assets/al_search/js/shortcut-key.js"></script> </body> </html>
