@@ -5,7 +5,11 @@ permalink: /
 nav: false
 ---
 
-<link rel="stylesheet" href="{{ '/assets/css/portfolio.css' | relative_url }}">
+{% assign portfolio_asset_version = site.github.build_revision %}
+{% unless portfolio_asset_version %}
+  {% assign portfolio_asset_version = site.time | date: '%s' %}
+{% endunless %}
+<link rel="stylesheet" href="{{ '/assets/css/portfolio.css' | relative_url }}?v={{ portfolio_asset_version }}">
 
 <main class="portfolio-site" id="main-content">
   <section class="portfolio-hero" aria-labelledby="portfolio-title">
@@ -195,4 +199,4 @@ nav: false
   </section>
 </main>
 
-<script src="{{ '/assets/js/portfolio.js' | relative_url }}" defer></script>
+<script src="{{ '/assets/js/portfolio.js' | relative_url }}?v={{ portfolio_asset_version }}" defer></script>

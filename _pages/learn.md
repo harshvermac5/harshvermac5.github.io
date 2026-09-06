@@ -15,7 +15,11 @@ pagination:
   title: ":title"
 ---
 
-<link rel="stylesheet" href="{{ '/assets/css/portfolio.css' | relative_url }}">
+{% assign portfolio_asset_version = site.github.build_revision %}
+{% unless portfolio_asset_version %}
+  {% assign portfolio_asset_version = site.time | date: '%s' %}
+{% endunless %}
+<link rel="stylesheet" href="{{ '/assets/css/portfolio.css' | relative_url }}?v={{ portfolio_asset_version }}">
 
 <div class="learning-hub">
   <header class="page-intro">
@@ -91,4 +95,4 @@ pagination:
 
 </div>
 
-<script src="{{ '/assets/js/portfolio.js' | relative_url }}" defer></script>
+<script src="{{ '/assets/js/portfolio.js' | relative_url }}?v={{ portfolio_asset_version }}" defer></script>
