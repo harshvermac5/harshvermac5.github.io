@@ -59,4 +59,21 @@
       document.body.classList.remove("portfolio-dialog-open");
     });
   });
+
+  const pageJumpForm = document.querySelector(".hub-page-jump");
+
+  pageJumpForm?.addEventListener("submit", (event) => {
+    event.preventDefault();
+
+    const pageInput = pageJumpForm.querySelector('input[name="page"]');
+    const requestedPage = Number.parseInt(pageInput?.value, 10);
+    const lastPage = Number.parseInt(pageInput?.max, 10);
+
+    if (!Number.isInteger(requestedPage) || requestedPage < 1 || requestedPage > lastPage) {
+      pageInput?.reportValidity();
+      return;
+    }
+
+    window.location.href = requestedPage === 1 ? pageJumpForm.dataset.firstPage : `${pageJumpForm.dataset.pagePrefix}${requestedPage}/`;
+  });
 })();

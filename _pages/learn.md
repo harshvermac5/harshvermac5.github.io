@@ -12,6 +12,7 @@ pagination:
   per_page: 20
   sort_field: date
   sort_reverse: true
+  title: ":title"
 ---
 
 <link rel="stylesheet" href="{{ '/assets/css/portfolio.css' | relative_url }}">
@@ -60,7 +61,24 @@ pagination:
     </div>
 
     {% if page.pagination.enabled %}
-      <div class="hub-pagination">{% include pagination.liquid %}</div>
+      <div class="hub-pagination">
+        {% include pagination.liquid %}
+        {% if paginator.total_pages > 1 %}
+          <div class="hub-pagination-tools">
+            <p id="hub-page-count">Page {{ paginator.page }} of {{ paginator.total_pages }}</p>
+            <form
+              class="hub-page-jump"
+              action="{{ '/learn/' | relative_url }}"
+              data-first-page="{{ '/learn/' | relative_url }}"
+              data-page-prefix="{{ '/learn/page/' | relative_url }}"
+            >
+              <label for="hub-page-number">Go to page</label>
+              <input id="hub-page-number" name="page" type="number" min="1" max="{{ paginator.total_pages }}" value="{{ paginator.page }}" inputmode="numeric">
+              <button type="submit">Go</button>
+            </form>
+          </div>
+        {% endif %}
+      </div>
     {% endif %}
 
 {% else %}
