@@ -1,0 +1,362 @@
+<!DOCTYPE html> <html lang="en"> <head> <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"> <meta charset="utf-8"> <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no"> <meta http-equiv="X-UA-Compatible" content="IE=edge"> <title> Engineering Reliable SNMP Monitoring for Network Switches | Harsh Verma </title> <meta name="author" content="Harsh Verma"> <meta name="description" content="A standards-based guide to SNMP polling, MIB/OID structure, SNMPv3 security, interface counters, and reliable switch observability."> <meta name="keywords" content="server engineer, network engineer, linux, data center, infrastructure automation, portfolio"> <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https:; style-src 'self' 'unsafe-inline' https:; img-src 'self' data: https:; font-src 'self' data: https:; media-src 'self' https:; frame-src 'self' https:; connect-src 'self' https:;"> <style>
+  :root {
+    --max-content-width: 1100px;
+  }
+</style> <link rel="stylesheet" href="/assets/css/tailwind.css?v=50c64c15cbb9fd1ce6056fdb8bcb4b62"> <link defer rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.2.0/css/all.min.css" integrity="sha256-MVopmdyC2tYTiJ8wlktf0uh0v4NgT+vNdyVFepi7Q0c=" crossorigin="anonymous"> <link defer rel="stylesheet" href="https://cdn.jsdelivr.net/npm/academicons@1.9.5/css/academicons.min.css" integrity="sha256-SzrCOBJbGVFMahewkgjwnApaV2+av1DwMAA+/QGLyZw=" crossorigin="anonymous"> <link defer rel="stylesheet" href="https://cdn.jsdelivr.net/npm/scholar-icons@1.0.3/css/scholar-icons.css" integrity="sha256-VY3hHVj/hNX3fYG6wtbA6TcKJQl7+FthzGSyIB64klY=" crossorigin="anonymous"> <link defer rel="stylesheet" type="text/css" href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700|Roboto+Slab:100,300,400,500,700|Material+Icons&amp;display=swap"> <link defer rel="stylesheet" href="/assets/css/jekyll-pygments-themes-github.css?v=591dab5a4e56573bf4ef7fd332894c99" media="" id="highlight_theme_light"> <link rel="shortcut icon" href="data:image/svg+xml,&lt;svg%20xmlns=%22http://www.w3.org/2000/svg%22%20viewBox=%220%200%20100%20100%22&gt;&lt;text%20y=%22.9em%22%20font-size=%2290%22&gt;%F0%9F%96%A5%EF%B8%8F&lt;/text&gt;&lt;/svg&gt;"> <link rel="stylesheet" href="/assets/css/main.css?v=3116ba77db9ee1581d05bb3e86fbf7f1"> <link rel="canonical" href="https://harshvermac5.github.io/learn/2026/snmp-switch-monitoring/"> <script src="/assets/js/theme.js?v=5286c3e4c334d0ecb8fc0c40ff4fa7ec"></script> <link defer rel="stylesheet" href="/assets/css/jekyll-pygments-themes-native.css?v=5847e5ed4a4568527aa6cfab446049ca" media="none" id="highlight_theme_dark"> <script>
+    initTheme();
+  </script> </head> <body class="fixed-top-nav sticky-bottom-footer"> <header> <nav id="navbar" class="navbar navbar-light navbar-expand-sm fixed-top" role="navigation"> <div class="container"> <a class="navbar-brand title font-weight-lighter" href="/"> Harsh Verma </a> <button class="navbar-toggler collapsed navbar-toggler-main" type="button" data-nav-toggle="navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation"> <span class="sr-only">Toggle navigation</span> <span class="icon-bar top-bar"></span> <span class="icon-bar middle-bar"></span> <span class="icon-bar bottom-bar"></span> </button> <div class="collapse navbar-collapse navbar-collapse-main" id="navbarNav"> <ul class="navbar-nav navbar-menu-list flex-nowrap"> <li class="nav-item "> <a class="nav-link" href="/">About </a> </li> <li class="nav-item "> <a class="nav-link" href="/#projects">Projects </a> </li> <li class="nav-item active"> <a class="nav-link" href="/learn/index.html">Learning Hub </a> </li> <li class="nav-item "> <a class="nav-link" href="/certs/">Certifications </a> </li> <li class="nav-item"> <button id="search-toggle" type="button" title="Search" aria-label="Open search"> <span class="nav-link">ctrl k <i class="fa-solid fa-magnifying-glass"></i></span> </button> </li> <li class="toggle-container"> <button id="light-toggle" type="button" title="Change theme" aria-label="Change color theme"> <i class="fa-half-sun-moon" id="light-toggle-system"></i> <i class="fa-solid fa-moon" id="light-toggle-dark"></i> <i class="fa-solid fa-sun" id="light-toggle-light"></i> </button> </li> </ul> </div> </div> </nav> <progress id="progress" value="0"> <div class="progress-container"> <span class="progress-bar"></span> </div> </progress> </header> <div class="container mt-5" role="main"> <div class="post"> <header class="post-header"> <h1 class="post-title">Engineering Reliable SNMP Monitoring for Network Switches</h1> <p class="post-meta"> Created on September 06, 2026 </p> <p class="post-tags"> <i class="fa-solid fa-calendar fa-sm"></i> 2026   ·   <i class="fa-solid fa-hashtag fa-sm"></i> snmp   <i class="fa-solid fa-hashtag fa-sm"></i> network-monitoring   <i class="fa-solid fa-hashtag fa-sm"></i> observability   ·   <i class="fa-solid fa-tag fa-sm"></i> Networking </p> </header> <article class="post-content"> <div id="markdown-content"> <h2 id="problem-statement-or-learning-objective">Problem Statement or Learning Objective</h2> <p>Reliable switch monitoring requires more than enabling an SNMP agent and allowing UDP port 161. The engineering problem is understanding how a manager retrieves objects, authenticates requests, handles counter discontinuities, and distinguishes a failed poll from a failed device.</p> <p>The core principle is <strong>manager-driven telemetry over a structured management information model</strong>. SNMP normally operates as a request-response protocol in which a manager queries an agent for objects identified by hierarchical <strong>Object Identifiers</strong>, or OIDs. Those objects are defined in <strong>Management Information Base</strong> modules using the <strong>Structure of Management Information Version 2</strong>, or SMIv2.</p> <p>For switching infrastructure, this model exposes interface state, counters, errors, discards, speed, and uptime without coupling monitoring to a proprietary API.</p> <h2 id="co-technical-subject">Co-Technical Subject</h2> <p><strong>Network Management Protocols and Switch Observability</strong></p> <p>The relevant domains are SNMP architecture, SMIv2 data modeling, interface MIB instrumentation, polling design, transport reachability, counter semantics, and authenticated management-plane security.</p> <h2 id="theoretical-foundation">Theoretical Foundation</h2> <p>The modern SNMP framework is described by <strong>RFC 3411, An Architecture for Describing Simple Network Management Protocol Management Frameworks, December 2002</strong>. It separates an SNMP entity into an engine and applications, with message processing, security, access control, and command-response functions treated as modular subsystems.</p> <p>RFC 3411 explicitly models managers and agents, describing <a href="https://www.rfc-editor.org/rfc/rfc3411.html" rel="external nofollow noopener" target="_blank">“several potentially many nodes, each with an SNMP entity”</a> and a management entity that generates commands or receives notifications. The manager sends protocol requests to an SNMP engine, which validates security and access control, resolves OIDs, and returns a response.</p> <p><strong>RFC 3416, Version 2 of the Protocol Operations for SNMP, December 2002</strong> defines the principal protocol data units. These include <strong>GetRequest</strong>, <strong>GetNextRequest</strong>, <strong>GetBulkRequest</strong>, <strong>Response</strong>, <strong>SetRequest</strong>, <strong>InformRequest</strong>, and <strong>SNMPv2-Trap</strong>. Monitoring systems primarily use the first four for polling.</p> <p>The data model is governed by <strong>RFC 2578, Structure of Management Information Version 2, April 1999</strong>. SMIv2 defines the OID hierarchy, base data types, textual conventions, module identities, and object semantics used by MIB modules. An OID is therefore not merely a numeric sensor address; it is an administratively assigned identifier with a defined syntax, access mode, status, and semantic meaning.</p> <p>For interfaces, <strong>RFC 2863, The Interfaces Group MIB, June 2000</strong> defines standard objects such as <code class="language-plaintext highlighter-rouge">ifAdminStatus</code>, <code class="language-plaintext highlighter-rouge">ifOperStatus</code>, <code class="language-plaintext highlighter-rouge">ifLastChange</code>, <code class="language-plaintext highlighter-rouge">ifInErrors</code>, <code class="language-plaintext highlighter-rouge">ifOutErrors</code>, <code class="language-plaintext highlighter-rouge">ifInDiscards</code>, <code class="language-plaintext highlighter-rouge">ifOutDiscards</code>, and high-capacity 64-bit octet counters.</p> <h2 id="mechanism-breakdown">Mechanism Breakdown</h2> <p>A typical polling cycle begins when the monitoring system selects an OID or a subtree to query. A single scalar can be retrieved with <strong>GetRequest</strong>. Sequential discovery can use <strong>GetNextRequest</strong>, while <strong>GetBulkRequest</strong> is preferred for efficiently walking tables under SNMPv2c and SNMPv3.</p> <p>The manager creates a request containing a request identifier and one or more variable bindings. The packet is sent to the managed node, conventionally using <strong>UDP port 161</strong>. IANA registers <code class="language-plaintext highlighter-rouge">snmp</code> on port 161 for both UDP and TCP, although UDP remains the dominant transport for conventional SNMP polling.</p> <p>The agent processes the request through its message-processing and security subsystems. If authentication, privacy, context, and access-control checks succeed, the command responder resolves the requested OIDs against its instrumentation. It then returns a <strong>Response-PDU</strong> carrying values or an error indication.</p> <p>Polling reliability depends on manager-side timeout and retry policy. With UDP, the manager waits for its configured timeout and may retransmit. A timeout proves only that a valid response was not received in time; filtering, routing failure, CPU pressure, authentication mismatch, packet loss, or agent overload can produce the same symptom.</p> <p>For SNMPv3, the security path is more involved. <strong>RFC 3414, User-based Security Model for SNMPv3, December 2002</strong> defines the <strong>User-based Security Model</strong>, or USM. Each message is associated with an authoritative SNMP engine, an engine identifier, security parameters, and a security level. The common security levels are <strong>noAuthNoPriv</strong>, <strong>authNoPriv</strong>, and <strong>authPriv</strong>.</p> <p>USM also provides timeliness protection using values associated with the authoritative engine, including engine boots and engine time. This helps reject replayed messages outside the accepted time window. Before authenticated communication is fully established, a manager may need to discover the remote engine identifier and synchronize the necessary timeliness state.</p> <p>The original USM specification defined HMAC-MD5-96 and HMAC-SHA-96 authentication. Modern deployments should prefer stronger supported authentication algorithms. <strong>RFC 7860, April 2016</strong> adds HMAC-SHA-2 authentication protocols for SNMPv3 USM. For privacy, <strong>RFC 3826, June 2004</strong> defines AES in CFB mode with a 128-bit key and states that the protocol provides <a href="https://www.rfc-editor.org/rfc/rfc3826.html" rel="external nofollow noopener" target="_blank">“support for data confidentiality”</a>.</p> <h2 id="industry-standards-reference">Industry Standards Reference</h2> <p>The primary standards for a standards-compliant monitoring design are <strong>RFC 3411</strong> for architecture, <strong>RFC 3414</strong> for SNMPv3 USM, <strong>RFC 3416</strong> for protocol operations, <strong>RFC 2578</strong> for SMIv2, <strong>RFC 2863</strong> for interface instrumentation, <strong>RFC 3826</strong> for AES privacy, and <strong>RFC 7860</strong> for HMAC-SHA-2 authentication.</p> <p>IANA’s Service Name and Transport Protocol Port Number Registry assigns <strong>161</strong> to <code class="language-plaintext highlighter-rouge">snmp</code> and <strong>162</strong> to <code class="language-plaintext highlighter-rouge">snmptrap</code>. This distinction is architectural: polling requests target the agent’s SNMP service, while trap or inform receivers conventionally listen on port 162. A device that implements polling but not notifications is an implementation limitation, not a limitation of the SNMP standards themselves.</p> <p>SMIv2 permits enterprise-specific MIB modules beneath <code class="language-plaintext highlighter-rouge">1.3.6.1.4.1</code>. Prefer standard MIBs when they expose the required signal because they improve monitoring portability.</p> <h2 id="practical-examples-and-evidence">Practical Examples and Evidence</h2> <p>A simple SNMPv2c query using Net-SNMP can verify basic reachability and object access:</p> <div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>snmpget <span class="nt">-v2c</span> <span class="nt">-c</span> monitor 192.0.2.10 1.3.6.1.2.1.1.3.0
+</code></pre></div></div> <p>The requested object is <code class="language-plaintext highlighter-rouge">sysUpTime.0</code>. Successful output demonstrates IP reachability, UDP/161 reachability, community acceptance, OID availability, and a functioning request-response path. It does not prove that every MIB subtree is authorized.</p> <p>Walking the standard interface table is more useful for switch monitoring:</p> <div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>snmpbulkwalk <span class="nt">-v2c</span> <span class="nt">-c</span> monitor 192.0.2.10 1.3.6.1.2.1.2.2
+</code></pre></div></div> <p>A secure SNMPv3 query can use authenticated and encrypted transport semantics at the SNMP message layer:</p> <div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>snmpget <span class="nt">-v3</span> <span class="nt">-l</span> authPriv <span class="nt">-u</span> monitor <span class="se">\</span>
+  <span class="nt">-a</span> SHA-256 <span class="nt">-A</span> <span class="s1">'authentication-secret'</span> <span class="se">\</span>
+  <span class="nt">-x</span> AES <span class="nt">-X</span> <span class="s1">'privacy-secret'</span> <span class="se">\</span>
+  192.0.2.10 1.3.6.1.2.1.1.3.0
+</code></pre></div></div> <p>Exact command-line algorithm names depend on the installed Net-SNMP build, so supported algorithms should be verified locally.</p> <p>Packet capture is useful when a poll times out:</p> <div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>tcpdump <span class="nt">-ni</span> any <span class="s1">'udp port 161 or udp port 162'</span>
+</code></pre></div></div> <p>If requests leave the manager but no responses return, investigate path filtering, agent reachability, and device-side processing. If responses return but the monitoring application still reports failure, investigate credentials, security parameters, OID parsing, request identifiers, or application-level timeout handling.</p> <p>For high-speed links, prefer <code class="language-plaintext highlighter-rouge">ifHCInOctets</code> and <code class="language-plaintext highlighter-rouge">ifHCOutOctets</code> over 32-bit counters. RFC 2863 defines these as 64-bit versions of the basic octet counters. A 32-bit octet counter can wrap rapidly on multi-gigabit interfaces, producing misleading rate calculations if the poller does not correctly handle rollover.</p> <h2 id="key-technical-insights">Key Technical Insights</h2> <ul> <li> <strong>SNMP reachability is a management-plane dependency.</strong> Successful ICMP or production traffic does not prove that UDP/161 is permitted end to end.</li> <li> <strong>Polling failures are ambiguous until packet flow is observed.</strong> A timeout can indicate network loss, filtering, authentication failure, agent overload, or device failure.</li> <li> <strong>MIB semantics matter more than raw OID discovery.</strong> Monitoring systems should understand object type, counter width, discontinuity behavior, and indexing rather than treating every integer as a generic sensor.</li> <li> <strong>Counter discontinuities must be handled explicitly.</strong> Reboots, management-process restarts, and interface reinitialization can invalidate naive delta calculations.</li> <li> <strong>64-bit interface counters are essential at modern speeds.</strong> Counter32 objects can wrap too quickly for reliable bandwidth computation on high-capacity links.</li> <li> <strong>SNMPv3 security is message-oriented.</strong> Authentication and privacy are provided by the SNMP security model rather than by TCP session security.</li> <li> <strong>Notification support is optional in practice.</strong> Polling can provide complete periodic observability even when a device does not originate traps, but polling intervals determine detection latency.</li> </ul> <h2 id="prevention-strategies-and-takeaways">Prevention Strategies and Takeaways</h2> <p>Design SNMP monitoring as a controlled management-plane service rather than a convenience feature. Place management interfaces in dedicated networks, permit queries only from authorized monitoring systems, and restrict SNMP views to the minimum required OID subtrees.</p> <p>Prefer <strong>SNMPv3 authPriv</strong> where supported. Use strong authentication and privacy algorithms available on both manager and agent, and avoid SNMPv1 or SNMPv2c across untrusted networks because community strings do not provide modern confidentiality or message authentication.</p> <p>Use standard interface MIB objects for portable health checks, especially operational state, error counters, discard counters, last-change timestamps, and 64-bit octet counters. Supplement them with enterprise MIB objects only when the required telemetry is not standardized.</p> <p>Finally, treat the monitoring pipeline itself as an observable system. Capture SNMP traffic during failures, track poll duration and timeout rates, distinguish transport loss from authorization errors, and correlate counter resets with uptime or interface-state transitions. A reliable SNMP deployment is not defined by whether an OID can be queried once; it is defined by whether the resulting telemetry remains interpretable under packet loss, device restarts, counter rollover, security changes, and management-plane faults.</p> </div> </article> <br> <hr> <br> <h2 class="text-3xl font-semibold mb-4 mt-12">Enjoy Reading This Article?</h2> <p class="mb-2">Here are some more articles you might like to read next:</p> <ul class="list-disc pl-7 my-3 space-y-2 marker:text-[var(--global-theme-color)]"> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/sip-alg-conntrack-state/">SIP ALG, Conntrack State, and Persistent NAT Rewriting</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/domain-policy-routing-dns-observation/">Why Domain-Based Policy Routing Fails When DNS Bypasses the Gateway</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/wireguard-site-to-site-nat-routing/">Site-to-Site WireGuard Through NAT: Cryptokey Routing, Policy Routes, and Firewall State</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/inter-vlan-iot-discovery-firewalling/">Inter-VLAN IoT Discovery and Stateful Firewall Isolation</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/ddns-cgnat-tunneled-wan/">Why Dynamic DNS Breaks Behind CGNAT and Tunneled WAN Interfaces</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/linux-poe-probe-failures/">When Hardware Probing Fails: Linux Device Initialization and PoE Control-Plane Errors</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/pppoe-nat-postrouting/">PPPoE and Source NAT: Why Translation Belongs After Routing</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/dns-search-suffix-resolution/">DNS Search Suffixes, Absolute Names, and Why Short Hostnames Fail Across VPNs</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/ospf-init-state-firewall/">Diagnosing OSPF Init State Across Encrypted Overlay Tunnels</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/ospf-tunnel-source-routing/">When OSPF Routes Work but Gateway-Originated Tunnel Traffic Fails</a> </li> </ul> </div> </div> <footer class="sticky-bottom mt-5" role="contentinfo"> <div class="container"> © Copyright 2026 Harsh Verma. Built with <a href="https://jekyllrb.com/" target="_blank" rel="external nofollow noopener">Jekyll</a> and <a href="https://github.com/alshedivat/al-folio" target="_blank" rel="external nofollow noopener">al-folio</a>. Hosted on GitHub Pages. </div> </footer> <script>
+  window.alFolio = {
+    compatBootstrap: false
+  };
+</script> <script src="/assets/js/nav-toggle.js?v=141bd79a73ebc0f0b6ea58e440ae79fc"></script> <script defer src="https://cdn.jsdelivr.net/npm/masonry-layout@4.2.2/dist/masonry.pkgd.min.js" integrity="sha256-Nn1q/fx0H7SNLZMQ5Hw5JLaTRZp0yILA/FRexe19VdI=" crossorigin="anonymous"></script> <script defer src="https://cdn.jsdelivr.net/npm/imagesloaded@5.0.0/imagesloaded.pkgd.min.js" integrity="sha256-htrLFfZJ6v5udOG+3kNLINIKh2gvoKqwEhHYfTTMICc=" crossorigin="anonymous"></script> <script defer src="/assets/js/masonry.js?v=e49affc7bd2646f6acdad1dbe02c2359" type="text/javascript"></script> <script defer type="text/javascript" id="MathJax-script" src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-mml-chtml.js" integrity="sha256-MASABpB4tYktI2Oitl4t+78w/lyA+D7b/s9GEP0JOGI=" crossorigin="anonymous"></script> <script src="/assets/al_math/js/mathjax-setup.js"></script> <script src="/assets/js/tooltips-setup.js?v=fe487e99db6c43751e6e7bdb2d6a0611"></script> <script src="/assets/js/no_defer.js?v=53b1b1a645525975c963ce8bf8bfefcf"></script> <script defer src="/assets/js/common.js?v=87baac90f765f2f3362dcf6aaf312a8a"></script> <script defer src="/assets/js/copy_code.js?v=c8a01c11a92744d44b093fc3bda915df" type="text/javascript"></script> <script defer src="/assets/js/jupyter_new_tab.js?v=896d254890d9b47f0281f63bfccf0dee"></script> <script async src="https://d1bxh8uas1mnw7.cloudfront.net/assets/embed.js"></script> <script async src="https://badge.dimensions.ai/badge.js"></script> <script defer src="https://cdn.jsdelivr.net/npm/medium-zoom@1.1.0/dist/medium-zoom.min.js" integrity="sha256-ZgMyDAIYDYGxbcpJcfUnYwNevG/xi9OHKaR/8GK+jWc=" crossorigin="anonymous"></script> <script defer src="/assets/al_img_tools/js/zoom.js"></script> <script defer src="/assets/js/progress-bar.js?v=499464c5c63ced6cf7ad62509f1e2610" type="text/javascript"></script> <script src="https://cdn.jsdelivr.net/npm/vanilla-back-to-top@7.2.1/dist/vanilla-back-to-top.min.js" integrity="sha256-uMJJ3EoTyfRBoTbR+lrfu1uRQ87RZG8AR3cVNuQVeFg=" crossorigin="anonymous"></script> <script>
+    addBackToTop();
+  </script> <script type="module" src="/assets/al_search/js/search/ninja-keys.min.js"></script> <ninja-keys hidebreadcrumbs noautoloadmdicons placeholder="Type to start searching"></ninja-keys> <script src="/assets/al_search/js/search-setup.js"></script> <script>
+// get the ninja-keys element
+const ninja = document.querySelector('ninja-keys');
+
+// add the home and posts menu items
+ninja.data = [{
+    id: "nav-about",
+    title: "About",
+    section: "Navigation",
+    handler: () => {
+      window.location.href = "/";
+    },
+  },{id: "nav-projects",
+          title: "Projects",
+          description: "",
+          section: "Navigation",
+          handler: () => {
+            window.location.href = "/#projects";
+          },
+        },{id: "nav-learning-hub",
+          title: "Learning Hub",
+          description: "Practical notes on servers, networking, Linux, security, and infrastructure automation.",
+          section: "Navigation",
+          handler: () => {
+            window.location.href = "/learn/index.html";
+          },
+        },{id: "nav-certifications",
+          title: "Certifications",
+          description: "Professional certifications across networking, cybersecurity, and infrastructure.",
+          section: "Navigation",
+          handler: () => {
+            window.location.href = "/certs/";
+          },
+        },{id: "post-engineering-reliable-snmp-monitoring-for-network-switches",
+        
+          title: "Engineering Reliable SNMP Monitoring for Network Switches",
+        
+        description: "A standards-based guide to SNMP polling, MIB/OID structure, SNMPv3 security, interface counters, and reliable switch observability.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/snmp-switch-monitoring/";
+          
+        },
+      },{id: "post-sip-alg-conntrack-state-and-persistent-nat-rewriting",
+        
+          title: "SIP ALG, Conntrack State, and Persistent NAT Rewriting",
+        
+        description: "How SIP application-layer gateways interact with UDP connection tracking, NAT mappings, response routing, and stale helper state.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/sip-alg-conntrack-state/";
+          
+        },
+      },{id: "post-why-domain-based-policy-routing-fails-when-dns-bypasses-the-gateway",
+        
+          title: "Why Domain-Based Policy Routing Fails When DNS Bypasses the Gateway",
+        
+        description: "A deep technical analysis of DNS-observed policy routing, dynamic destination sets, encrypted DNS bypass, and deterministic multi-WAN forwarding design.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/domain-policy-routing-dns-observation/";
+          
+        },
+      },{id: "post-site-to-site-wireguard-through-nat-cryptokey-routing-policy-routes-and-firewall-state",
+        
+          title: "Site-to-Site WireGuard Through NAT: Cryptokey Routing, Policy Routes, and Firewall State",
+        
+        description: "A technical guide to building selective site-to-site WireGuard connectivity through NAT while preserving local Internet breakout and predictable firewall behavior.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/wireguard-site-to-site-nat-routing/";
+          
+        },
+      },{id: "post-inter-vlan-iot-discovery-and-stateful-firewall-isolation",
+        
+          title: "Inter-VLAN IoT Discovery and Stateful Firewall Isolation",
+        
+        description: "A standards-based analysis of why IoT discovery and direct device access fail across VLAN boundaries, and how to design narrowly scoped inter-VLAN firewall policy without defeating segmentation.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/inter-vlan-iot-discovery-firewalling/";
+          
+        },
+      },{id: "post-why-dynamic-dns-breaks-behind-cgnat-and-tunneled-wan-interfaces",
+        
+          title: "Why Dynamic DNS Breaks Behind CGNAT and Tunneled WAN Interfaces",
+        
+        description: "A deep technical analysis of why interface-bound Dynamic DNS can publish the wrong address behind CGNAT, GRE tunnels, and multi-stage WAN architectures.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/ddns-cgnat-tunneled-wan/";
+          
+        },
+      },{id: "post-when-hardware-probing-fails-linux-device-initialization-and-poe-control-plane-errors",
+        
+          title: "When Hardware Probing Fails: Linux Device Initialization and PoE Control-Plane Errors",
+        
+        description: "How failed Linux driver probing can leave PoE hardware unrepresented in userspace and cause otherwise unrelated configuration transactions to fail.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/linux-poe-probe-failures/";
+          
+        },
+      },{id: "post-pppoe-and-source-nat-why-translation-belongs-after-routing",
+        
+          title: "PPPoE and Source NAT: Why Translation Belongs After Routing",
+        
+        description: "A deep technical guide to how PPPoE creates an IP forwarding interface, how stateful source NAT binds flows in post-routing, and when to use SNAT versus masquerading.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/pppoe-nat-postrouting/";
+          
+        },
+      },{id: "post-dns-search-suffixes-absolute-names-and-why-short-hostnames-fail-across-vpns",
+        
+          title: "DNS Search Suffixes, Absolute Names, and Why Short Hostnames Fail Across VPNs",
+        
+        description: "A deep technical guide to DNS search lists, absolute names, resolver behavior, and why short hostnames can fail even when DNS and IP connectivity are healthy.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/dns-search-suffix-resolution/";
+          
+        },
+      },{id: "post-diagnosing-ospf-init-state-across-encrypted-overlay-tunnels",
+        
+          title: "Diagnosing OSPF Init State Across Encrypted Overlay Tunnels",
+        
+        description: "How asymmetric OSPF Hello filtering can leave encrypted tunnels healthy while dynamic route exchange silently fails.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/ospf-init-state-firewall/";
+          
+        },
+      },{id: "post-when-ospf-routes-work-but-gateway-originated-tunnel-traffic-fails",
+        
+          title: "When OSPF Routes Work but Gateway-Originated Tunnel Traffic Fails",
+        
+        description: "Why multi-hop OSPF over encrypted tunnels can forward LAN traffic successfully while gateway-originated flows fail because tunnel /32 source addresses lack a return route.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/ospf-tunnel-source-routing/";
+          
+        },
+      },{id: "post-when-ike-is-healthy-but-ipsec-is-broken-diagnosing-one-way-esp-black-holes",
+        
+          title: "When IKE Is Healthy but IPsec Is Broken: Diagnosing One-Way ESP Black Holes...",
+        
+        description: "Why an IPsec tunnel can remain established at the IKE control plane while ESP traffic silently fails in one direction, and how to diagnose the split correctly.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/one-way-ipsec-esp-blackholes/";
+          
+        },
+      },{id: "post-atomic-configuration-validation-and-control-plane-drift",
+        
+          title: "Atomic Configuration Validation and Control-Plane Drift",
+        
+        description: "How schema validation, transactional configuration pushes, and datastore drift can cause a single invalid field to block an entire network-device configuration.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/atomic-config-validation/";
+          
+        },
+      },{id: "post-diagnosing-transient-network-outages-with-fault-domain-isolation",
+        
+          title: "Diagnosing Transient Network Outages with Fault-Domain Isolation",
+        
+        description: "A vendor-neutral method for separating gateway, switching, wireless authentication, and logging failures during short-lived network disruptions.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/transient-network-outage-isolation/";
+          
+        },
+      },{id: "post-when-10gbase-t-sfp-modules-destabilize-ethernet-links",
+        
+          title: "When 10GBASE-T SFP+ Modules Destabilize Ethernet Links",
+        
+        description: "How SFP+ module identification, PHY mode selection, and repeated link-state transitions can collapse TCP throughput even when an interface nominally reports 10 Gb/s.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/sfp-plus-link-flaps/";
+          
+        },
+      },{id: "post-ipsec-phase-2-traffic-selectors-and-partial-tunnel-failures",
+        
+          title: "IPsec Phase 2 Traffic Selectors and Partial Tunnel Failures",
+        
+        description: "Why an IPsec tunnel can remain established while one subnet pair fails because routing state and negotiated traffic selectors are separate control-plane objects.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/ipsec-phase2-selectors/";
+          
+        },
+      },{id: "post-when-ups-calibration-state-becomes-a-shutdown-hazard-in-network-ups-tools",
+        
+          title: "When UPS Calibration State Becomes a Shutdown Hazard in Network UPS Tools",
+        
+        description: "A deep analysis of how stale NUT calibration state can turn a brief monitoring outage into an immediate infrastructure shutdown.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/nut-calibration-state-failure/";
+          
+        },
+      },{id: "post-diagnosing-wan-failures-beyond-physical-link-state",
+        
+          title: "Diagnosing WAN Failures Beyond Physical Link State",
+        
+        description: "A layered method for distinguishing Ethernet carrier loss, upstream path degradation, and application-level failure in redundant WAN designs.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/diagnosing-wan-failures/";
+          
+        },
+      },{id: "post-diagnosing-linux-critical-thermal-shutdowns",
+        
+          title: "Diagnosing Linux Critical Thermal Shutdowns",
+        
+        description: "A practical framework for distinguishing genuine silicon overheating from faulty thermal telemetry when Linux initiates a protective shutdown.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/linux-critical-thermal-shutdowns/";
+          
+        },
+      },{id: "post-wireguard-site-to-site-routing-with-selective-split-tunneling",
+        
+          title: "WireGuard Site-to-Site Routing with Selective Split Tunneling",
+        
+        description: "How WireGuard cryptokey routing, policy-based forwarding, firewall rules, NAT, and return paths combine in a selective site-to-site VPN design.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/wireguard-site-to-site-split-tunneling/";
+          
+        },
+      },{id: "post-building-and-transferring-docker-images-to-air-gapped-debian-systems",
+        
+          title: "Building and Transferring Docker Images to Air-Gapped Debian Systems",
+        
+        description: "A practical Debian-focused guide to Docker images, containers, offline Docker installation, and transferring workloads into air-gapped environments.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/docker-images-containers-air-gapped-debian/";
+          
+        },
+      },{id: "post-configuring-git-and-github-ssh-access-safely",
+        
+          title: "Configuring Git and GitHub SSH Access Safely",
+        
+        description: "A practical guide to configuring Git identity, setting up SSH authentication with GitHub, managing remotes, and pushing changes safely.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/configuring-git-github-ssh-access-safely/";
+          
+        },
+      },{id: "post-welcome-to-the-learning-hub",
+        
+          title: "Welcome to the Learning Hub",
+        
+        description: "A home for practical notes on infrastructure, networking, Linux, and automation.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/welcome-to-the-learning-hub/";
+          
+        },
+      },{
+        id: 'social-email',
+        title: 'email',
+        section: 'Socials',
+        handler: () => {
+          window.open("mailto:%68%61%72%73%68%76%65%72%6D%61%63%35@%67%6D%61%69%6C.%63%6F%6D", "_blank");
+        },
+      },{
+        id: 'social-github',
+        title: 'GitHub',
+        section: 'Socials',
+        handler: () => {
+          window.open("https://github.com/harshvermac5", "_blank");
+        },
+      },{
+        id: 'social-linkedin',
+        title: 'LinkedIn',
+        section: 'Socials',
+        handler: () => {
+          window.open("https://www.linkedin.com/in/harshvermac5", "_blank");
+        },
+      },{
+        id: 'social-rss',
+        title: 'RSS Feed',
+        section: 'Socials',
+        handler: () => {
+          window.open("/feed.xml", "_blank");
+        },
+      },{
+      id: 'light-theme',
+      title: 'Change theme to light',
+      description: 'Change the theme of the site to Light',
+      section: 'Theme',
+      handler: () => {
+        setThemeSetting("light");
+      },
+    },
+    {
+      id: 'dark-theme',
+      title: 'Change theme to dark',
+      description: 'Change the theme of the site to Dark',
+      section: 'Theme',
+      handler: () => {
+        setThemeSetting("dark");
+      },
+    },
+    {
+      id: 'system-theme',
+      title: 'Use system default theme',
+      description: 'Change the theme of the site to System Default',
+      section: 'Theme',
+      handler: () => {
+        setThemeSetting("system");
+      },
+    },];
+
+</script> <script src="/assets/al_search/js/shortcut-key.js"></script> </body> </html>
