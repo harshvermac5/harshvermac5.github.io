@@ -17,7 +17,7 @@
             tcp dport 9000 ct state new accept
     }
 }
-</code></pre> <p>This permits established return traffic automatically while limiting new trusted-to-IoT sessions to one destination and port. If packet capture proves the IoT device must initiate a separate callback, that direction should receive its own narrowly scoped rule rather than a blanket bidirectional allow.</p> <h2 id="key-technical-insights">Key Technical Insights</h2> <ul> <li> <strong>Discovery reachability is not session reachability.</strong> mDNS reflection can reveal a device while the stateful firewall still blocks its application port.</li> <li> <strong>Internet connectivity is not evidence of inter-VLAN permission.</strong> Default routes and NAT can work while east-west policy remains deny-by-default.</li> <li> <strong>Broadcast and multicast are not interchangeable.</strong> Broadcast generally terminates at the routed boundary; multicast forwarding depends on group scope, multicast control protocols, and explicit relay or routing behavior.</li> <li> <strong>mDNS is intentionally link-local.</strong> Extending it across VLANs requires a reflector, proxy, or gateway service that deliberately republishes selected queries and responses.</li> <li> <strong>Direction matters.</strong> A rule allowing trusted clients to initiate sessions toward IoT devices is materially different from allowing IoT devices to initiate arbitrary sessions toward trusted networks.</li> <li> <strong>Broad allow rules are diagnostic tools, not final architecture.</strong> They can prove that policy is the blocker, but they should be reduced to specific sources, destinations, protocols, and ports after evidence is collected.</li> </ul> <h2 id="prevention-strategies-and-takeaways">Prevention Strategies and Takeaways</h2> <p>Design IoT segmentation around observable traffic requirements rather than assumptions about how a mobile application behaves. Establish a deny-by-default boundary, then validate discovery and session flows separately with packet captures and state-table evidence.</p> <p>Where service discovery must cross VLANs, prefer narrowly scoped mDNS or DNS-SD reflection over unrestricted multicast forwarding. Avoid attempting to route generic Layer 2 broadcast discovery across security boundaries. For the actual application session, permit only the initiating direction that is required and rely on stateful return handling where appropriate.</p> <p>Finally, treat temporary removal of isolation as a controlled experiment. If communication immediately succeeds, isolation has identified the policy layer responsible, but the correct remediation is not permanent de-segmentation. Re-enable the boundary, capture the successful flow, identify exact endpoints and ports, and implement the smallest policy exception that preserves application functionality without collapsing the trust model.</p> </div> </article> <br> <hr> <br> <h2 class="text-3xl font-semibold mb-4 mt-12">Enjoy Reading This Article?</h2> <p class="mb-2">Here are some more articles you might like to read next:</p> <ul class="list-disc pl-7 my-3 space-y-2 marker:text-[var(--global-theme-color)]"> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/mab-embedded-devices/">Diagnosing MAC Authentication Bypass Failures on Embedded Ethernet Devices</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/diagnosing-ipsec-ike-failures/">Diagnosing IPsec IKE Failures with Packet-Flow Evidence</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/vlan-zone-segmentation/">Designing Secure VLAN Segmentation with Zone-Based Firewall Policy</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/dhcpv6-prefix-delegation/">DHCPv6 Prefix Delegation: From WAN Lease to LAN Prefix Activation</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/wireguard-mtu-mss-clamping/">Path MTU Discovery and TCP MSS Clamping Across WireGuard Tunnels</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/snmp-switch-monitoring/">Engineering Reliable SNMP Monitoring for Network Switches</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/sip-alg-conntrack-state/">SIP ALG, Conntrack State, and Persistent NAT Rewriting</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/domain-policy-routing-dns-observation/">Why Domain-Based Policy Routing Fails When DNS Bypasses the Gateway</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/wireguard-site-to-site-nat-routing/">Site-to-Site WireGuard Through NAT: Cryptokey Routing, Policy Routes, and Firewall State</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/ddns-cgnat-tunneled-wan/">Why Dynamic DNS Breaks Behind CGNAT and Tunneled WAN Interfaces</a> </li> </ul> </div> </div> <footer class="sticky-bottom mt-5" role="contentinfo"> <div class="container"> © Copyright 2026 Harsh Verma. Built with <a href="https://jekyllrb.com/" target="_blank" rel="external nofollow noopener">Jekyll</a> and <a href="https://github.com/alshedivat/al-folio" target="_blank" rel="external nofollow noopener">al-folio</a>. Hosted on GitHub Pages. </div> </footer> <script>
+</code></pre> <p>This permits established return traffic automatically while limiting new trusted-to-IoT sessions to one destination and port. If packet capture proves the IoT device must initiate a separate callback, that direction should receive its own narrowly scoped rule rather than a blanket bidirectional allow.</p> <h2 id="key-technical-insights">Key Technical Insights</h2> <ul> <li> <strong>Discovery reachability is not session reachability.</strong> mDNS reflection can reveal a device while the stateful firewall still blocks its application port.</li> <li> <strong>Internet connectivity is not evidence of inter-VLAN permission.</strong> Default routes and NAT can work while east-west policy remains deny-by-default.</li> <li> <strong>Broadcast and multicast are not interchangeable.</strong> Broadcast generally terminates at the routed boundary; multicast forwarding depends on group scope, multicast control protocols, and explicit relay or routing behavior.</li> <li> <strong>mDNS is intentionally link-local.</strong> Extending it across VLANs requires a reflector, proxy, or gateway service that deliberately republishes selected queries and responses.</li> <li> <strong>Direction matters.</strong> A rule allowing trusted clients to initiate sessions toward IoT devices is materially different from allowing IoT devices to initiate arbitrary sessions toward trusted networks.</li> <li> <strong>Broad allow rules are diagnostic tools, not final architecture.</strong> They can prove that policy is the blocker, but they should be reduced to specific sources, destinations, protocols, and ports after evidence is collected.</li> </ul> <h2 id="prevention-strategies-and-takeaways">Prevention Strategies and Takeaways</h2> <p>Design IoT segmentation around observable traffic requirements rather than assumptions about how a mobile application behaves. Establish a deny-by-default boundary, then validate discovery and session flows separately with packet captures and state-table evidence.</p> <p>Where service discovery must cross VLANs, prefer narrowly scoped mDNS or DNS-SD reflection over unrestricted multicast forwarding. Avoid attempting to route generic Layer 2 broadcast discovery across security boundaries. For the actual application session, permit only the initiating direction that is required and rely on stateful return handling where appropriate.</p> <p>Finally, treat temporary removal of isolation as a controlled experiment. If communication immediately succeeds, isolation has identified the policy layer responsible, but the correct remediation is not permanent de-segmentation. Re-enable the boundary, capture the successful flow, identify exact endpoints and ports, and implement the smallest policy exception that preserves application functionality without collapsing the trust model.</p> </div> </article> <br> <hr> <br> <h2 class="text-3xl font-semibold mb-4 mt-12">Enjoy Reading This Article?</h2> <p class="mb-2">Here are some more articles you might like to read next:</p> <ul class="list-disc pl-7 my-3 space-y-2 marker:text-[var(--global-theme-color)]"> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/routed-vpn-layer2-discovery/">Why Layer 2 Discovery Fails Across Routed VPNs</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/pppoe-mtu-mss-clamping/">PPPoE MTU, MSS Clamping, and Path MTU Black Holes</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/sfp-compatibility-not-voltage/">Why SFP Compatibility Problems Are Usually Not Voltage Problems</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/ikev2-auth-traffic-selectors/">Troubleshooting IKEv2 Authentication and Traffic Selector Failures</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/igmp-snooping-multicast-flooding/">IGMP Snooping, Querier Election, and Multicast Flooding</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/application-signature-allowlisting/">Why Application Signatures Fail as Allow-Only Firewall Policies</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/mab-embedded-devices/">Diagnosing MAC Authentication Bypass Failures on Embedded Ethernet Devices</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/diagnosing-ipsec-ike-failures/">Diagnosing IPsec IKE Failures with Packet-Flow Evidence</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/vlan-zone-segmentation/">Designing Secure VLAN Segmentation with Zone-Based Firewall Policy</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/dhcpv6-prefix-delegation/">DHCPv6 Prefix Delegation: From WAN Lease to LAN Prefix Activation</a> </li> </ul> </div> </div> <footer class="sticky-bottom mt-5" role="contentinfo"> <div class="container"> © Copyright 2026 Harsh Verma. Built with <a href="https://jekyllrb.com/" target="_blank" rel="external nofollow noopener">Jekyll</a> and <a href="https://github.com/alshedivat/al-folio" target="_blank" rel="external nofollow noopener">al-folio</a>. Hosted on GitHub Pages. </div> </footer> <script>
   window.alFolio = {
     compatBootstrap: false
   };
@@ -56,7 +56,73 @@ ninja.data = [{
           handler: () => {
             window.location.href = "/certs/";
           },
-        },{id: "post-diagnosing-mac-authentication-bypass-failures-on-embedded-ethernet-devices",
+        },{id: "post-why-layer-2-discovery-fails-across-routed-vpns",
+        
+          title: "Why Layer 2 Discovery Fails Across Routed VPNs",
+        
+        description: "A standards-based analysis of why LLDP and other link-local discovery protocols do not traverse routed remote-access VPNs, and where proxy ARP and Layer 2 overlays fit.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/routed-vpn-layer2-discovery/";
+          
+        },
+      },{id: "post-pppoe-mtu-mss-clamping-and-path-mtu-black-holes",
+        
+          title: "PPPoE MTU, MSS Clamping, and Path MTU Black Holes",
+        
+        description: "A deep technical guide to how PPPoE overhead, Path MTU Discovery failures, and TCP MSS handling can cause selective application connectivity problems.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/pppoe-mtu-mss-clamping/";
+          
+        },
+      },{id: "post-why-sfp-compatibility-problems-are-usually-not-voltage-problems",
+        
+          title: "Why SFP Compatibility Problems Are Usually Not Voltage Problems",
+        
+        description: "A practical look at why SFP and SFP+ modules fail to initialize or link despite sharing the same nominal supply voltage.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/sfp-compatibility-not-voltage/";
+          
+        },
+      },{id: "post-troubleshooting-ikev2-authentication-and-traffic-selector-failures",
+        
+          title: "Troubleshooting IKEv2 Authentication and Traffic Selector Failures",
+        
+        description: "A standards-based guide to separating IKE_SA_INIT, IKE_AUTH, CHILD_SA, and traffic-selector failures when diagnosing site-to-site IPsec tunnels.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/ikev2-auth-traffic-selectors/";
+          
+        },
+      },{id: "post-igmp-snooping-querier-election-and-multicast-flooding",
+        
+          title: "IGMP Snooping, Querier Election, and Multicast Flooding",
+        
+        description: "A standards-based analysis of how IGMP snooping builds multicast forwarding state, how querier election sustains that state, and why failures cause Layer 2 multicast flooding.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/igmp-snooping-multicast-flooding/";
+          
+        },
+      },{id: "post-why-application-signatures-fail-as-allow-only-firewall-policies",
+        
+          title: "Why Application Signatures Fail as Allow-Only Firewall Policies",
+        
+        description: "A technical analysis of why DPI application signatures are effective for blocking but incomplete for dependency-aware allowlisting in modern encrypted applications.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/application-signature-allowlisting/";
+          
+        },
+      },{id: "post-diagnosing-mac-authentication-bypass-failures-on-embedded-ethernet-devices",
         
           title: "Diagnosing MAC Authentication Bypass Failures on Embedded Ethernet Devices",
         

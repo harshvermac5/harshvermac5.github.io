@@ -14,7 +14,7 @@ Tunnel-Private-Group-ID = "2002"
 DHCP Discover from 00:0e:c6:94:08:a4
 IPv6 Neighbor Solicitation
 Vendor discovery Ethernet frame
-</code></pre></div></div> <p>If those frames are visible on the wire but the switch never creates a MAB session or RADIUS request, the evidence points toward the authenticator’s <strong>station-learning or MAB trigger path</strong>, not AAA policy.</p> <p>Link-state history also matters. A device that emits only one startup burst can be sensitive to link renegotiation, forwarding initialization, power-saving behavior, or repeated physical flaps. Those conditions do not prove a MAB defect, but they can explain why one authenticator sees the endpoint while another does not.</p> <h2 id="key-technical-insights">Key Technical Insights</h2> <ul> <li> <strong>No RADIUS packet is itself evidence.</strong> It moves the failure boundary from AAA policy toward the authenticator, Layer 2 learning, or endpoint transmit behavior.</li> <li> <strong>A healthy RADIUS server does not prove every MAB identity will work.</strong> NAS-specific rules and MAC formatting can produce selective failures.</li> <li> <strong>Successful MAB clients on the same switch are powerful controls.</strong> They reduce the likelihood of a global reachability, shared-secret, or VLAN fault.</li> <li> <strong>Client-table absence can be meaningful.</strong> For a MAB implementation driven by source-MAC observation, no learned station may explain why authentication never starts.</li> <li> <strong>MAB interoperability is weaker than 802.1X interoperability.</strong> The access-control architecture is standardized; the bypass trigger and credential encoding are not.</li> <li> <strong>Comparative captures are most useful when aligned by event.</strong> Compare link-up, first endpoint frame, first RADIUS request, authorization result, and first permitted data frame.</li> </ul> <h2 id="prevention-strategies-and-takeaways">Prevention Strategies and Takeaways</h2> <p>Use MAB as an exception path for devices that cannot support 802.1X, not as an equivalent security mechanism. A MAC address is observable and spoofable, so authorization should be narrow and combined with segmentation, least-privilege ACLs, and physically controlled access ports.</p> <p>Normalize MAC identities in AAA policy so that separator and case differences do not silently break authorization. Policy should still validate NAS identity and expected access location.</p> <p>During troubleshooting, instrument both sides of the decision boundary. Capture endpoint ingress traffic and RADIUS traffic simultaneously. This separates <strong>endpoint silence</strong>, <strong>authenticator trigger failure</strong>, <strong>RADIUS rejection</strong>, and <strong>post-authentication policy failure</strong> without relying on UI state alone.</p> <p>Treat MAB as a chain of dependent mechanisms: Ethernet link establishment, source-MAC observation, access-control state, RADIUS request generation, AAA policy evaluation, and post-authorization forwarding. Root-cause analysis becomes much faster once you identify the first stage for which expected evidence is missing.</p> </div> </article> <br> <hr> <br> <h2 class="text-3xl font-semibold mb-4 mt-12">Enjoy Reading This Article?</h2> <p class="mb-2">Here are some more articles you might like to read next:</p> <ul class="list-disc pl-7 my-3 space-y-2 marker:text-[var(--global-theme-color)]"> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/diagnosing-ipsec-ike-failures/">Diagnosing IPsec IKE Failures with Packet-Flow Evidence</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/vlan-zone-segmentation/">Designing Secure VLAN Segmentation with Zone-Based Firewall Policy</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/dhcpv6-prefix-delegation/">DHCPv6 Prefix Delegation: From WAN Lease to LAN Prefix Activation</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/wireguard-mtu-mss-clamping/">Path MTU Discovery and TCP MSS Clamping Across WireGuard Tunnels</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/snmp-switch-monitoring/">Engineering Reliable SNMP Monitoring for Network Switches</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/sip-alg-conntrack-state/">SIP ALG, Conntrack State, and Persistent NAT Rewriting</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/domain-policy-routing-dns-observation/">Why Domain-Based Policy Routing Fails When DNS Bypasses the Gateway</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/wireguard-site-to-site-nat-routing/">Site-to-Site WireGuard Through NAT: Cryptokey Routing, Policy Routes, and Firewall State</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/inter-vlan-iot-discovery-firewalling/">Inter-VLAN IoT Discovery and Stateful Firewall Isolation</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/ddns-cgnat-tunneled-wan/">Why Dynamic DNS Breaks Behind CGNAT and Tunneled WAN Interfaces</a> </li> </ul> </div> </div> <footer class="sticky-bottom mt-5" role="contentinfo"> <div class="container"> © Copyright 2026 Harsh Verma. Built with <a href="https://jekyllrb.com/" target="_blank" rel="external nofollow noopener">Jekyll</a> and <a href="https://github.com/alshedivat/al-folio" target="_blank" rel="external nofollow noopener">al-folio</a>. Hosted on GitHub Pages. </div> </footer> <script>
+</code></pre></div></div> <p>If those frames are visible on the wire but the switch never creates a MAB session or RADIUS request, the evidence points toward the authenticator’s <strong>station-learning or MAB trigger path</strong>, not AAA policy.</p> <p>Link-state history also matters. A device that emits only one startup burst can be sensitive to link renegotiation, forwarding initialization, power-saving behavior, or repeated physical flaps. Those conditions do not prove a MAB defect, but they can explain why one authenticator sees the endpoint while another does not.</p> <h2 id="key-technical-insights">Key Technical Insights</h2> <ul> <li> <strong>No RADIUS packet is itself evidence.</strong> It moves the failure boundary from AAA policy toward the authenticator, Layer 2 learning, or endpoint transmit behavior.</li> <li> <strong>A healthy RADIUS server does not prove every MAB identity will work.</strong> NAS-specific rules and MAC formatting can produce selective failures.</li> <li> <strong>Successful MAB clients on the same switch are powerful controls.</strong> They reduce the likelihood of a global reachability, shared-secret, or VLAN fault.</li> <li> <strong>Client-table absence can be meaningful.</strong> For a MAB implementation driven by source-MAC observation, no learned station may explain why authentication never starts.</li> <li> <strong>MAB interoperability is weaker than 802.1X interoperability.</strong> The access-control architecture is standardized; the bypass trigger and credential encoding are not.</li> <li> <strong>Comparative captures are most useful when aligned by event.</strong> Compare link-up, first endpoint frame, first RADIUS request, authorization result, and first permitted data frame.</li> </ul> <h2 id="prevention-strategies-and-takeaways">Prevention Strategies and Takeaways</h2> <p>Use MAB as an exception path for devices that cannot support 802.1X, not as an equivalent security mechanism. A MAC address is observable and spoofable, so authorization should be narrow and combined with segmentation, least-privilege ACLs, and physically controlled access ports.</p> <p>Normalize MAC identities in AAA policy so that separator and case differences do not silently break authorization. Policy should still validate NAS identity and expected access location.</p> <p>During troubleshooting, instrument both sides of the decision boundary. Capture endpoint ingress traffic and RADIUS traffic simultaneously. This separates <strong>endpoint silence</strong>, <strong>authenticator trigger failure</strong>, <strong>RADIUS rejection</strong>, and <strong>post-authentication policy failure</strong> without relying on UI state alone.</p> <p>Treat MAB as a chain of dependent mechanisms: Ethernet link establishment, source-MAC observation, access-control state, RADIUS request generation, AAA policy evaluation, and post-authorization forwarding. Root-cause analysis becomes much faster once you identify the first stage for which expected evidence is missing.</p> </div> </article> <br> <hr> <br> <h2 class="text-3xl font-semibold mb-4 mt-12">Enjoy Reading This Article?</h2> <p class="mb-2">Here are some more articles you might like to read next:</p> <ul class="list-disc pl-7 my-3 space-y-2 marker:text-[var(--global-theme-color)]"> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/routed-vpn-layer2-discovery/">Why Layer 2 Discovery Fails Across Routed VPNs</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/pppoe-mtu-mss-clamping/">PPPoE MTU, MSS Clamping, and Path MTU Black Holes</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/sfp-compatibility-not-voltage/">Why SFP Compatibility Problems Are Usually Not Voltage Problems</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/ikev2-auth-traffic-selectors/">Troubleshooting IKEv2 Authentication and Traffic Selector Failures</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/igmp-snooping-multicast-flooding/">IGMP Snooping, Querier Election, and Multicast Flooding</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/application-signature-allowlisting/">Why Application Signatures Fail as Allow-Only Firewall Policies</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/diagnosing-ipsec-ike-failures/">Diagnosing IPsec IKE Failures with Packet-Flow Evidence</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/vlan-zone-segmentation/">Designing Secure VLAN Segmentation with Zone-Based Firewall Policy</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/dhcpv6-prefix-delegation/">DHCPv6 Prefix Delegation: From WAN Lease to LAN Prefix Activation</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/wireguard-mtu-mss-clamping/">Path MTU Discovery and TCP MSS Clamping Across WireGuard Tunnels</a> </li> </ul> </div> </div> <footer class="sticky-bottom mt-5" role="contentinfo"> <div class="container"> © Copyright 2026 Harsh Verma. Built with <a href="https://jekyllrb.com/" target="_blank" rel="external nofollow noopener">Jekyll</a> and <a href="https://github.com/alshedivat/al-folio" target="_blank" rel="external nofollow noopener">al-folio</a>. Hosted on GitHub Pages. </div> </footer> <script>
   window.alFolio = {
     compatBootstrap: false
   };
@@ -53,7 +53,73 @@ ninja.data = [{
           handler: () => {
             window.location.href = "/certs/";
           },
-        },{id: "post-diagnosing-mac-authentication-bypass-failures-on-embedded-ethernet-devices",
+        },{id: "post-why-layer-2-discovery-fails-across-routed-vpns",
+        
+          title: "Why Layer 2 Discovery Fails Across Routed VPNs",
+        
+        description: "A standards-based analysis of why LLDP and other link-local discovery protocols do not traverse routed remote-access VPNs, and where proxy ARP and Layer 2 overlays fit.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/routed-vpn-layer2-discovery/";
+          
+        },
+      },{id: "post-pppoe-mtu-mss-clamping-and-path-mtu-black-holes",
+        
+          title: "PPPoE MTU, MSS Clamping, and Path MTU Black Holes",
+        
+        description: "A deep technical guide to how PPPoE overhead, Path MTU Discovery failures, and TCP MSS handling can cause selective application connectivity problems.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/pppoe-mtu-mss-clamping/";
+          
+        },
+      },{id: "post-why-sfp-compatibility-problems-are-usually-not-voltage-problems",
+        
+          title: "Why SFP Compatibility Problems Are Usually Not Voltage Problems",
+        
+        description: "A practical look at why SFP and SFP+ modules fail to initialize or link despite sharing the same nominal supply voltage.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/sfp-compatibility-not-voltage/";
+          
+        },
+      },{id: "post-troubleshooting-ikev2-authentication-and-traffic-selector-failures",
+        
+          title: "Troubleshooting IKEv2 Authentication and Traffic Selector Failures",
+        
+        description: "A standards-based guide to separating IKE_SA_INIT, IKE_AUTH, CHILD_SA, and traffic-selector failures when diagnosing site-to-site IPsec tunnels.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/ikev2-auth-traffic-selectors/";
+          
+        },
+      },{id: "post-igmp-snooping-querier-election-and-multicast-flooding",
+        
+          title: "IGMP Snooping, Querier Election, and Multicast Flooding",
+        
+        description: "A standards-based analysis of how IGMP snooping builds multicast forwarding state, how querier election sustains that state, and why failures cause Layer 2 multicast flooding.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/igmp-snooping-multicast-flooding/";
+          
+        },
+      },{id: "post-why-application-signatures-fail-as-allow-only-firewall-policies",
+        
+          title: "Why Application Signatures Fail as Allow-Only Firewall Policies",
+        
+        description: "A technical analysis of why DPI application signatures are effective for blocking but incomplete for dependency-aware allowlisting in modern encrypted applications.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/application-signature-allowlisting/";
+          
+        },
+      },{id: "post-diagnosing-mac-authentication-bypass-failures-on-embedded-ethernet-devices",
         
           title: "Diagnosing MAC Authentication Bypass Failures on Embedded Ethernet Devices",
         

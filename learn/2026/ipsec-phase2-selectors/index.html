@@ -22,7 +22,7 @@ IDci: 10.20.0.0/16
 IDcr: 172.16.100.0/24
 proposal accepted
 IPsec SA installed
-</code></pre></div></div> <p>Absence of any proposal for the subnet is materially different from an explicit rejection. Messages such as <code class="language-plaintext highlighter-rouge">NO_PROPOSAL_CHOSEN</code>, identity mismatch, or unacceptable selector indicate negotiation occurred and failed. No matching Quick Mode or TS messages indicate that the selector may never have been proposed.</p> <h2 id="key-technical-insights">Key Technical Insights</h2> <ul> <li> <strong>“Tunnel up” is not a complete health signal.</strong> IKE liveness and per-selector IPsec state must be monitored separately.</li> <li> <strong>A route is not a Security Association.</strong> The FIB answers where traffic should go; the SPD/SAD determine whether IPsec can actually protect it.</li> <li> <strong>Multi-subnet tunnels can fail partially.</strong> One selector pair can remain healthy while another disappears.</li> <li> <strong>Initiation behavior matters.</strong> If only one peer generates a particular selector, the tunnel depends on that peer continuing to initiate or rekey it.</li> <li> <strong>No proposal and rejected proposal are different failure classes.</strong> Search IKE logs for evidence of the missing selector before changing firewall policy.</li> <li> <strong>Route-based does not mean selector-free.</strong> Implementations may hide selector behavior behind a virtual interface, broad traffic selectors, policy marks, or generated SPD entries.</li> <li> <strong>Firewall evidence must be placed in packet-processing order.</strong> If the required IPsec policy or SA does not exist, changing a later-stage firewall rule cannot create it.</li> </ul> <h2 id="prevention-strategies-and-takeaways">Prevention Strategies and Takeaways</h2> <ul> <li>Prefer <strong>IKEv2</strong> for new deployments and migrations.</li> <li>Explicitly document every intended local/remote selector pair, even when the platform presents a route-based abstraction.</li> <li>Verify how each implementation maps configured remote prefixes into <strong>routes, SPD entries, and IKE traffic selectors</strong>.</li> <li>Monitor per-Child-SA or per-Phase-2 state instead of relying only on peer-level tunnel status.</li> <li>During troubleshooting, compare <code class="language-plaintext highlighter-rouge">ip route</code>, <code class="language-plaintext highlighter-rouge">ip xfrm policy</code>, <code class="language-plaintext highlighter-rouge">ip xfrm state</code>, IKE negotiation logs, and ESP counters.</li> <li>Treat a missing selector as an IKE/SPD problem until evidence shows that the selector is installed and traffic reaches a later firewall stage.</li> <li>When interoperating across different implementations, test tunnel recovery after peer restarts, rekeys, configuration reloads, and loss of individual SAs.</li> </ul> <p>The durable lesson is simple: <strong>IPsec connectivity is established per security policy and SA, not merely per peer</strong>. A VPN can be cryptographically alive yet operationally incomplete. The fastest path to root cause is to inspect the exact selector state that protects the failing traffic.</p> </div> </article> <br> <hr> <br> <h2 class="text-3xl font-semibold mb-4 mt-12">Enjoy Reading This Article?</h2> <p class="mb-2">Here are some more articles you might like to read next:</p> <ul class="list-disc pl-7 my-3 space-y-2 marker:text-[var(--global-theme-color)]"> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/mab-embedded-devices/">Diagnosing MAC Authentication Bypass Failures on Embedded Ethernet Devices</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/diagnosing-ipsec-ike-failures/">Diagnosing IPsec IKE Failures with Packet-Flow Evidence</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/vlan-zone-segmentation/">Designing Secure VLAN Segmentation with Zone-Based Firewall Policy</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/dhcpv6-prefix-delegation/">DHCPv6 Prefix Delegation: From WAN Lease to LAN Prefix Activation</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/wireguard-mtu-mss-clamping/">Path MTU Discovery and TCP MSS Clamping Across WireGuard Tunnels</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/snmp-switch-monitoring/">Engineering Reliable SNMP Monitoring for Network Switches</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/sip-alg-conntrack-state/">SIP ALG, Conntrack State, and Persistent NAT Rewriting</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/domain-policy-routing-dns-observation/">Why Domain-Based Policy Routing Fails When DNS Bypasses the Gateway</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/wireguard-site-to-site-nat-routing/">Site-to-Site WireGuard Through NAT: Cryptokey Routing, Policy Routes, and Firewall State</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/inter-vlan-iot-discovery-firewalling/">Inter-VLAN IoT Discovery and Stateful Firewall Isolation</a> </li> </ul> </div> </div> <footer class="sticky-bottom mt-5" role="contentinfo"> <div class="container"> © Copyright 2026 Harsh Verma. Built with <a href="https://jekyllrb.com/" target="_blank" rel="external nofollow noopener">Jekyll</a> and <a href="https://github.com/alshedivat/al-folio" target="_blank" rel="external nofollow noopener">al-folio</a>. Hosted on GitHub Pages. </div> </footer> <script>
+</code></pre></div></div> <p>Absence of any proposal for the subnet is materially different from an explicit rejection. Messages such as <code class="language-plaintext highlighter-rouge">NO_PROPOSAL_CHOSEN</code>, identity mismatch, or unacceptable selector indicate negotiation occurred and failed. No matching Quick Mode or TS messages indicate that the selector may never have been proposed.</p> <h2 id="key-technical-insights">Key Technical Insights</h2> <ul> <li> <strong>“Tunnel up” is not a complete health signal.</strong> IKE liveness and per-selector IPsec state must be monitored separately.</li> <li> <strong>A route is not a Security Association.</strong> The FIB answers where traffic should go; the SPD/SAD determine whether IPsec can actually protect it.</li> <li> <strong>Multi-subnet tunnels can fail partially.</strong> One selector pair can remain healthy while another disappears.</li> <li> <strong>Initiation behavior matters.</strong> If only one peer generates a particular selector, the tunnel depends on that peer continuing to initiate or rekey it.</li> <li> <strong>No proposal and rejected proposal are different failure classes.</strong> Search IKE logs for evidence of the missing selector before changing firewall policy.</li> <li> <strong>Route-based does not mean selector-free.</strong> Implementations may hide selector behavior behind a virtual interface, broad traffic selectors, policy marks, or generated SPD entries.</li> <li> <strong>Firewall evidence must be placed in packet-processing order.</strong> If the required IPsec policy or SA does not exist, changing a later-stage firewall rule cannot create it.</li> </ul> <h2 id="prevention-strategies-and-takeaways">Prevention Strategies and Takeaways</h2> <ul> <li>Prefer <strong>IKEv2</strong> for new deployments and migrations.</li> <li>Explicitly document every intended local/remote selector pair, even when the platform presents a route-based abstraction.</li> <li>Verify how each implementation maps configured remote prefixes into <strong>routes, SPD entries, and IKE traffic selectors</strong>.</li> <li>Monitor per-Child-SA or per-Phase-2 state instead of relying only on peer-level tunnel status.</li> <li>During troubleshooting, compare <code class="language-plaintext highlighter-rouge">ip route</code>, <code class="language-plaintext highlighter-rouge">ip xfrm policy</code>, <code class="language-plaintext highlighter-rouge">ip xfrm state</code>, IKE negotiation logs, and ESP counters.</li> <li>Treat a missing selector as an IKE/SPD problem until evidence shows that the selector is installed and traffic reaches a later firewall stage.</li> <li>When interoperating across different implementations, test tunnel recovery after peer restarts, rekeys, configuration reloads, and loss of individual SAs.</li> </ul> <p>The durable lesson is simple: <strong>IPsec connectivity is established per security policy and SA, not merely per peer</strong>. A VPN can be cryptographically alive yet operationally incomplete. The fastest path to root cause is to inspect the exact selector state that protects the failing traffic.</p> </div> </article> <br> <hr> <br> <h2 class="text-3xl font-semibold mb-4 mt-12">Enjoy Reading This Article?</h2> <p class="mb-2">Here are some more articles you might like to read next:</p> <ul class="list-disc pl-7 my-3 space-y-2 marker:text-[var(--global-theme-color)]"> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/routed-vpn-layer2-discovery/">Why Layer 2 Discovery Fails Across Routed VPNs</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/pppoe-mtu-mss-clamping/">PPPoE MTU, MSS Clamping, and Path MTU Black Holes</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/sfp-compatibility-not-voltage/">Why SFP Compatibility Problems Are Usually Not Voltage Problems</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/ikev2-auth-traffic-selectors/">Troubleshooting IKEv2 Authentication and Traffic Selector Failures</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/igmp-snooping-multicast-flooding/">IGMP Snooping, Querier Election, and Multicast Flooding</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/application-signature-allowlisting/">Why Application Signatures Fail as Allow-Only Firewall Policies</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/mab-embedded-devices/">Diagnosing MAC Authentication Bypass Failures on Embedded Ethernet Devices</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/diagnosing-ipsec-ike-failures/">Diagnosing IPsec IKE Failures with Packet-Flow Evidence</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/vlan-zone-segmentation/">Designing Secure VLAN Segmentation with Zone-Based Firewall Policy</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/dhcpv6-prefix-delegation/">DHCPv6 Prefix Delegation: From WAN Lease to LAN Prefix Activation</a> </li> </ul> </div> </div> <footer class="sticky-bottom mt-5" role="contentinfo"> <div class="container"> © Copyright 2026 Harsh Verma. Built with <a href="https://jekyllrb.com/" target="_blank" rel="external nofollow noopener">Jekyll</a> and <a href="https://github.com/alshedivat/al-folio" target="_blank" rel="external nofollow noopener">al-folio</a>. Hosted on GitHub Pages. </div> </footer> <script>
   window.alFolio = {
     compatBootstrap: false
   };
@@ -61,7 +61,73 @@ ninja.data = [{
           handler: () => {
             window.location.href = "/certs/";
           },
-        },{id: "post-diagnosing-mac-authentication-bypass-failures-on-embedded-ethernet-devices",
+        },{id: "post-why-layer-2-discovery-fails-across-routed-vpns",
+        
+          title: "Why Layer 2 Discovery Fails Across Routed VPNs",
+        
+        description: "A standards-based analysis of why LLDP and other link-local discovery protocols do not traverse routed remote-access VPNs, and where proxy ARP and Layer 2 overlays fit.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/routed-vpn-layer2-discovery/";
+          
+        },
+      },{id: "post-pppoe-mtu-mss-clamping-and-path-mtu-black-holes",
+        
+          title: "PPPoE MTU, MSS Clamping, and Path MTU Black Holes",
+        
+        description: "A deep technical guide to how PPPoE overhead, Path MTU Discovery failures, and TCP MSS handling can cause selective application connectivity problems.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/pppoe-mtu-mss-clamping/";
+          
+        },
+      },{id: "post-why-sfp-compatibility-problems-are-usually-not-voltage-problems",
+        
+          title: "Why SFP Compatibility Problems Are Usually Not Voltage Problems",
+        
+        description: "A practical look at why SFP and SFP+ modules fail to initialize or link despite sharing the same nominal supply voltage.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/sfp-compatibility-not-voltage/";
+          
+        },
+      },{id: "post-troubleshooting-ikev2-authentication-and-traffic-selector-failures",
+        
+          title: "Troubleshooting IKEv2 Authentication and Traffic Selector Failures",
+        
+        description: "A standards-based guide to separating IKE_SA_INIT, IKE_AUTH, CHILD_SA, and traffic-selector failures when diagnosing site-to-site IPsec tunnels.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/ikev2-auth-traffic-selectors/";
+          
+        },
+      },{id: "post-igmp-snooping-querier-election-and-multicast-flooding",
+        
+          title: "IGMP Snooping, Querier Election, and Multicast Flooding",
+        
+        description: "A standards-based analysis of how IGMP snooping builds multicast forwarding state, how querier election sustains that state, and why failures cause Layer 2 multicast flooding.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/igmp-snooping-multicast-flooding/";
+          
+        },
+      },{id: "post-why-application-signatures-fail-as-allow-only-firewall-policies",
+        
+          title: "Why Application Signatures Fail as Allow-Only Firewall Policies",
+        
+        description: "A technical analysis of why DPI application signatures are effective for blocking but incomplete for dependency-aware allowlisting in modern encrypted applications.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/application-signature-allowlisting/";
+          
+        },
+      },{id: "post-diagnosing-mac-authentication-bypass-failures-on-embedded-ethernet-devices",
         
           title: "Diagnosing MAC Authentication Bypass Failures on Embedded Ethernet Devices",
         

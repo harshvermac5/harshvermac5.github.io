@@ -9,7 +9,7 @@
 </code></pre></div></div> <p>Representative output might resemble:</p> <div class="language-text highlighter-rouge"><div class="highlight"><pre class="highlight"><code>udp 17 25 src=198.51.100.10 dst=203.0.113.20 sport=500 dport=500 \
     [UNREPLIED] src=203.0.113.20 dst=198.51.100.10 sport=500 dport=500
 </code></pre></div></div> <p><strong><code class="language-plaintext highlighter-rouge">UNREPLIED</code> is a Linux conntrack implementation state, not an IETF protocol state.</strong> It means the tracking subsystem has observed packets in the original direction but none matching the reverse tuple. It does not identify where the packet was lost.</p> <p>The decisive next test is a capture at or immediately in front of the responder:</p> <div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">sudo </span>tcpdump <span class="nt">-ni</span> any <span class="s1">'host 198.51.100.10 and (udp port 500 or udp port 4500)'</span>
-</code></pre></div></div> <p>Interpret the result causally:</p> <ul> <li>If the responder capture sees nothing, investigate routing, upstream ACLs, NAT, ISP filtering, wrong peer addressing, or cloud security policy.</li> <li>If the request arrives but the responder sends nothing, investigate IKE service state, peer matching, local firewall policy, malformed input, or responder configuration.</li> <li>If both request and response leave the responder but the initiator sees only outbound traffic, investigate asymmetric routing, NAT state, return-path filtering, or intermediate packet loss.</li> <li>If bidirectional IKE is visible, move upward to proposal, authentication, identity, certificate, traffic-selector, and Child SA diagnostics.</li> </ul> <h2 id="key-technical-insights">Key Technical Insights</h2> <ul> <li> <strong>Transport evidence precedes cryptographic evidence.</strong> No response means the responder has not been proven to participate in negotiation.</li> <li> <strong>Proposal mismatches require protocol interaction.</strong> Look for IKE notifications or responder logs before concluding that AES, SHA, or Diffie-Hellman settings disagree.</li> <li> <strong>UDP retransmissions are diagnostic evidence.</strong> Repeated requests with no reverse traffic show that IKE reliability logic is waiting on the peer.</li> <li> <strong>NAT-T changes the observable path.</strong> Capture both UDP 500 and 4500 and account for address or port translation between endpoints.</li> <li> <strong>PFS is not a reachability switch.</strong> Additional Child SA Diffie-Hellman exchange affects key derivation and forward secrecy, not whether the first IKE packet receives a response.</li> <li> <strong>Working parallel tunnels are useful controls.</strong> If the same local IPsec stack maintains other SAs successfully, a global IKE subsystem failure becomes less likely, although peer-specific routing and policy must still be verified.</li> </ul> <h2 id="prevention-strategies-and-takeaways">Prevention Strategies and Takeaways</h2> <p>Build IPsec troubleshooting around protocol progression rather than configuration guessing.</p> <ul> <li>Verify peer addressing and routing before modifying cryptographic proposals.</li> <li>Capture IKE traffic on both endpoints whenever possible.</li> <li>Treat one-way UDP 500 or 4500 traffic as a reachability or responder problem until evidence proves otherwise.</li> <li>Confirm NAT-T behavior explicitly when NAT exists anywhere in the path.</li> <li>Move to proposal and authentication debugging only after bidirectional IKE traffic is established.</li> <li>Prefer IKEv2 for new deployments and avoid weakening cryptography merely to test reachability.</li> <li>Record a known-good baseline containing peer addresses, IKE version, transforms, authentication method, lifetimes, Child SA selectors, and NAT assumptions.</li> </ul> <p>The most important operational habit is simple: <strong>follow the packet and the state machine in order</strong>. When IKE never receives a response, the next useful question is not which cipher to try. It is where the response path stops existing.</p> </div> </article> <br> <hr> <br> <h2 class="text-3xl font-semibold mb-4 mt-12">Enjoy Reading This Article?</h2> <p class="mb-2">Here are some more articles you might like to read next:</p> <ul class="list-disc pl-7 my-3 space-y-2 marker:text-[var(--global-theme-color)]"> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/mab-embedded-devices/">Diagnosing MAC Authentication Bypass Failures on Embedded Ethernet Devices</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/vlan-zone-segmentation/">Designing Secure VLAN Segmentation with Zone-Based Firewall Policy</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/dhcpv6-prefix-delegation/">DHCPv6 Prefix Delegation: From WAN Lease to LAN Prefix Activation</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/wireguard-mtu-mss-clamping/">Path MTU Discovery and TCP MSS Clamping Across WireGuard Tunnels</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/snmp-switch-monitoring/">Engineering Reliable SNMP Monitoring for Network Switches</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/sip-alg-conntrack-state/">SIP ALG, Conntrack State, and Persistent NAT Rewriting</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/domain-policy-routing-dns-observation/">Why Domain-Based Policy Routing Fails When DNS Bypasses the Gateway</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/wireguard-site-to-site-nat-routing/">Site-to-Site WireGuard Through NAT: Cryptokey Routing, Policy Routes, and Firewall State</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/inter-vlan-iot-discovery-firewalling/">Inter-VLAN IoT Discovery and Stateful Firewall Isolation</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/ddns-cgnat-tunneled-wan/">Why Dynamic DNS Breaks Behind CGNAT and Tunneled WAN Interfaces</a> </li> </ul> </div> </div> <footer class="sticky-bottom mt-5" role="contentinfo"> <div class="container"> © Copyright 2026 Harsh Verma. Built with <a href="https://jekyllrb.com/" target="_blank" rel="external nofollow noopener">Jekyll</a> and <a href="https://github.com/alshedivat/al-folio" target="_blank" rel="external nofollow noopener">al-folio</a>. Hosted on GitHub Pages. </div> </footer> <script>
+</code></pre></div></div> <p>Interpret the result causally:</p> <ul> <li>If the responder capture sees nothing, investigate routing, upstream ACLs, NAT, ISP filtering, wrong peer addressing, or cloud security policy.</li> <li>If the request arrives but the responder sends nothing, investigate IKE service state, peer matching, local firewall policy, malformed input, or responder configuration.</li> <li>If both request and response leave the responder but the initiator sees only outbound traffic, investigate asymmetric routing, NAT state, return-path filtering, or intermediate packet loss.</li> <li>If bidirectional IKE is visible, move upward to proposal, authentication, identity, certificate, traffic-selector, and Child SA diagnostics.</li> </ul> <h2 id="key-technical-insights">Key Technical Insights</h2> <ul> <li> <strong>Transport evidence precedes cryptographic evidence.</strong> No response means the responder has not been proven to participate in negotiation.</li> <li> <strong>Proposal mismatches require protocol interaction.</strong> Look for IKE notifications or responder logs before concluding that AES, SHA, or Diffie-Hellman settings disagree.</li> <li> <strong>UDP retransmissions are diagnostic evidence.</strong> Repeated requests with no reverse traffic show that IKE reliability logic is waiting on the peer.</li> <li> <strong>NAT-T changes the observable path.</strong> Capture both UDP 500 and 4500 and account for address or port translation between endpoints.</li> <li> <strong>PFS is not a reachability switch.</strong> Additional Child SA Diffie-Hellman exchange affects key derivation and forward secrecy, not whether the first IKE packet receives a response.</li> <li> <strong>Working parallel tunnels are useful controls.</strong> If the same local IPsec stack maintains other SAs successfully, a global IKE subsystem failure becomes less likely, although peer-specific routing and policy must still be verified.</li> </ul> <h2 id="prevention-strategies-and-takeaways">Prevention Strategies and Takeaways</h2> <p>Build IPsec troubleshooting around protocol progression rather than configuration guessing.</p> <ul> <li>Verify peer addressing and routing before modifying cryptographic proposals.</li> <li>Capture IKE traffic on both endpoints whenever possible.</li> <li>Treat one-way UDP 500 or 4500 traffic as a reachability or responder problem until evidence proves otherwise.</li> <li>Confirm NAT-T behavior explicitly when NAT exists anywhere in the path.</li> <li>Move to proposal and authentication debugging only after bidirectional IKE traffic is established.</li> <li>Prefer IKEv2 for new deployments and avoid weakening cryptography merely to test reachability.</li> <li>Record a known-good baseline containing peer addresses, IKE version, transforms, authentication method, lifetimes, Child SA selectors, and NAT assumptions.</li> </ul> <p>The most important operational habit is simple: <strong>follow the packet and the state machine in order</strong>. When IKE never receives a response, the next useful question is not which cipher to try. It is where the response path stops existing.</p> </div> </article> <br> <hr> <br> <h2 class="text-3xl font-semibold mb-4 mt-12">Enjoy Reading This Article?</h2> <p class="mb-2">Here are some more articles you might like to read next:</p> <ul class="list-disc pl-7 my-3 space-y-2 marker:text-[var(--global-theme-color)]"> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/routed-vpn-layer2-discovery/">Why Layer 2 Discovery Fails Across Routed VPNs</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/pppoe-mtu-mss-clamping/">PPPoE MTU, MSS Clamping, and Path MTU Black Holes</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/sfp-compatibility-not-voltage/">Why SFP Compatibility Problems Are Usually Not Voltage Problems</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/ikev2-auth-traffic-selectors/">Troubleshooting IKEv2 Authentication and Traffic Selector Failures</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/igmp-snooping-multicast-flooding/">IGMP Snooping, Querier Election, and Multicast Flooding</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/application-signature-allowlisting/">Why Application Signatures Fail as Allow-Only Firewall Policies</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/mab-embedded-devices/">Diagnosing MAC Authentication Bypass Failures on Embedded Ethernet Devices</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/vlan-zone-segmentation/">Designing Secure VLAN Segmentation with Zone-Based Firewall Policy</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/dhcpv6-prefix-delegation/">DHCPv6 Prefix Delegation: From WAN Lease to LAN Prefix Activation</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/wireguard-mtu-mss-clamping/">Path MTU Discovery and TCP MSS Clamping Across WireGuard Tunnels</a> </li> </ul> </div> </div> <footer class="sticky-bottom mt-5" role="contentinfo"> <div class="container"> © Copyright 2026 Harsh Verma. Built with <a href="https://jekyllrb.com/" target="_blank" rel="external nofollow noopener">Jekyll</a> and <a href="https://github.com/alshedivat/al-folio" target="_blank" rel="external nofollow noopener">al-folio</a>. Hosted on GitHub Pages. </div> </footer> <script>
   window.alFolio = {
     compatBootstrap: false
   };
@@ -48,7 +48,73 @@ ninja.data = [{
           handler: () => {
             window.location.href = "/certs/";
           },
-        },{id: "post-diagnosing-mac-authentication-bypass-failures-on-embedded-ethernet-devices",
+        },{id: "post-why-layer-2-discovery-fails-across-routed-vpns",
+        
+          title: "Why Layer 2 Discovery Fails Across Routed VPNs",
+        
+        description: "A standards-based analysis of why LLDP and other link-local discovery protocols do not traverse routed remote-access VPNs, and where proxy ARP and Layer 2 overlays fit.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/routed-vpn-layer2-discovery/";
+          
+        },
+      },{id: "post-pppoe-mtu-mss-clamping-and-path-mtu-black-holes",
+        
+          title: "PPPoE MTU, MSS Clamping, and Path MTU Black Holes",
+        
+        description: "A deep technical guide to how PPPoE overhead, Path MTU Discovery failures, and TCP MSS handling can cause selective application connectivity problems.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/pppoe-mtu-mss-clamping/";
+          
+        },
+      },{id: "post-why-sfp-compatibility-problems-are-usually-not-voltage-problems",
+        
+          title: "Why SFP Compatibility Problems Are Usually Not Voltage Problems",
+        
+        description: "A practical look at why SFP and SFP+ modules fail to initialize or link despite sharing the same nominal supply voltage.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/sfp-compatibility-not-voltage/";
+          
+        },
+      },{id: "post-troubleshooting-ikev2-authentication-and-traffic-selector-failures",
+        
+          title: "Troubleshooting IKEv2 Authentication and Traffic Selector Failures",
+        
+        description: "A standards-based guide to separating IKE_SA_INIT, IKE_AUTH, CHILD_SA, and traffic-selector failures when diagnosing site-to-site IPsec tunnels.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/ikev2-auth-traffic-selectors/";
+          
+        },
+      },{id: "post-igmp-snooping-querier-election-and-multicast-flooding",
+        
+          title: "IGMP Snooping, Querier Election, and Multicast Flooding",
+        
+        description: "A standards-based analysis of how IGMP snooping builds multicast forwarding state, how querier election sustains that state, and why failures cause Layer 2 multicast flooding.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/igmp-snooping-multicast-flooding/";
+          
+        },
+      },{id: "post-why-application-signatures-fail-as-allow-only-firewall-policies",
+        
+          title: "Why Application Signatures Fail as Allow-Only Firewall Policies",
+        
+        description: "A technical analysis of why DPI application signatures are effective for blocking but incomplete for dependency-aware allowlisting in modern encrypted applications.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/application-signature-allowlisting/";
+          
+        },
+      },{id: "post-diagnosing-mac-authentication-bypass-failures-on-embedded-ethernet-devices",
         
           title: "Diagnosing MAC Authentication Bypass Failures on Embedded Ethernet Devices",
         

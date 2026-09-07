@@ -36,7 +36,7 @@
 journalctl <span class="nt">-k</span> <span class="nt">-b</span> <span class="nt">-1</span> | <span class="nb">grep</span> <span class="nt">-Ei</span> <span class="s1">'thermal|critical|shutdown|watchdog'</span>
 journalctl <span class="nt">--since</span> <span class="s1">'2026-08-31 07:40:30'</span> <span class="nt">--until</span> <span class="s1">'2026-08-31 07:42:00'</span>
 sensors <span class="nt">-u</span>
-</code></pre></div></div> <p>Suppose an on-die zone reaches <strong>106 °C</strong> while a board monitor reports <strong>64 °C</strong>. The 42 °C delta supports two hypotheses: localized junction heating across a real thermal resistance, or an erroneous sensor path. It does not select between them. A smooth rise tied to workload and improved by airflow supports genuine heating. Instantaneous spikes, impossible slew rates, repeated identical ceiling values, or failures at low load support telemetry or hardware instability.</p> <h2 id="key-technical-insights">Key Technical Insights</h2> <ul> <li> <strong>Causal ordering outranks log volume.</strong> The first decisive kernel event explains the service failures that follow during shutdown.</li> <li> <strong>Sensor scope matters.</strong> Junction, package, board, inlet, and external-monitor temperatures are not interchangeable.</li> <li> <strong>A normal post-boot reading is weak counterevidence.</strong> Power-off changes both thermal load and elapsed cooling time.</li> <li> <strong>Repeated historical critical trips establish recurrence.</strong> Rotated logs help separate a persistent mechanism from a one-time environmental excursion.</li> <li> <strong>Low fan RPM is contextual, not self-explanatory.</strong> Zero RPM can indicate fan-stop policy, passive cooling, missing fan hardware, or failure; validate the platform design and requested cooling state.</li> <li> <strong>Reboot is a risky critical action.</strong> Repeated rebooting can re-energize thermally stressed hardware before it cools, which is why shutdown is the preferred Device Tree default.</li> </ul> <h2 id="prevention-strategies-and-takeaways">Prevention Strategies and Takeaways</h2> <ul> <li>Place equipment where intake and exhaust paths remain unobstructed; avoid enclosed cabinets, stacked heat sources, and recirculating exhaust.</li> <li>Monitor every relevant zone and retain kernel logs across boots. Alert below the critical threshold so operators observe throttling before protection activates.</li> <li>Record ambient or inlet temperature alongside junction telemetry. Cross-sensor trends are more useful than isolated absolute values.</li> <li>Validate polling intervals against the platform’s worst-case temperature rise and use sensor interrupts where supported.</li> <li>After an airflow change, reproduce comparable workload and verify that no new <strong><code class="language-plaintext highlighter-rouge">critical temperature reached</code></strong> event appears.</li> <li>Escalate for hardware repair when critical trips persist under verified ambient conditions, readings show implausible discontinuities, or sensor disagreement cannot be explained by load and thermal design.</li> </ul> <p>The governing diagnostic rule is simple: trust the kernel event as proof of why the system shut down, but do not confuse proof of the shutdown mechanism with proof of the underlying thermal cause. That second conclusion requires correlated telemetry, physical inspection, controlled environmental testing, and recurrence analysis.</p> </div> </article> <br> <hr> <br> <h2 class="text-3xl font-semibold mb-4 mt-12">Enjoy Reading This Article?</h2> <p class="mb-2">Here are some more articles you might like to read next:</p> <ul class="list-disc pl-7 my-3 space-y-2 marker:text-[var(--global-theme-color)]"> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/mab-embedded-devices/">Diagnosing MAC Authentication Bypass Failures on Embedded Ethernet Devices</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/diagnosing-ipsec-ike-failures/">Diagnosing IPsec IKE Failures with Packet-Flow Evidence</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/vlan-zone-segmentation/">Designing Secure VLAN Segmentation with Zone-Based Firewall Policy</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/dhcpv6-prefix-delegation/">DHCPv6 Prefix Delegation: From WAN Lease to LAN Prefix Activation</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/wireguard-mtu-mss-clamping/">Path MTU Discovery and TCP MSS Clamping Across WireGuard Tunnels</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/snmp-switch-monitoring/">Engineering Reliable SNMP Monitoring for Network Switches</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/sip-alg-conntrack-state/">SIP ALG, Conntrack State, and Persistent NAT Rewriting</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/domain-policy-routing-dns-observation/">Why Domain-Based Policy Routing Fails When DNS Bypasses the Gateway</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/wireguard-site-to-site-nat-routing/">Site-to-Site WireGuard Through NAT: Cryptokey Routing, Policy Routes, and Firewall State</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/inter-vlan-iot-discovery-firewalling/">Inter-VLAN IoT Discovery and Stateful Firewall Isolation</a> </li> </ul> </div> </div> <footer class="sticky-bottom mt-5" role="contentinfo"> <div class="container"> © Copyright 2026 Harsh Verma. Built with <a href="https://jekyllrb.com/" target="_blank" rel="external nofollow noopener">Jekyll</a> and <a href="https://github.com/alshedivat/al-folio" target="_blank" rel="external nofollow noopener">al-folio</a>. Hosted on GitHub Pages. </div> </footer> <script>
+</code></pre></div></div> <p>Suppose an on-die zone reaches <strong>106 °C</strong> while a board monitor reports <strong>64 °C</strong>. The 42 °C delta supports two hypotheses: localized junction heating across a real thermal resistance, or an erroneous sensor path. It does not select between them. A smooth rise tied to workload and improved by airflow supports genuine heating. Instantaneous spikes, impossible slew rates, repeated identical ceiling values, or failures at low load support telemetry or hardware instability.</p> <h2 id="key-technical-insights">Key Technical Insights</h2> <ul> <li> <strong>Causal ordering outranks log volume.</strong> The first decisive kernel event explains the service failures that follow during shutdown.</li> <li> <strong>Sensor scope matters.</strong> Junction, package, board, inlet, and external-monitor temperatures are not interchangeable.</li> <li> <strong>A normal post-boot reading is weak counterevidence.</strong> Power-off changes both thermal load and elapsed cooling time.</li> <li> <strong>Repeated historical critical trips establish recurrence.</strong> Rotated logs help separate a persistent mechanism from a one-time environmental excursion.</li> <li> <strong>Low fan RPM is contextual, not self-explanatory.</strong> Zero RPM can indicate fan-stop policy, passive cooling, missing fan hardware, or failure; validate the platform design and requested cooling state.</li> <li> <strong>Reboot is a risky critical action.</strong> Repeated rebooting can re-energize thermally stressed hardware before it cools, which is why shutdown is the preferred Device Tree default.</li> </ul> <h2 id="prevention-strategies-and-takeaways">Prevention Strategies and Takeaways</h2> <ul> <li>Place equipment where intake and exhaust paths remain unobstructed; avoid enclosed cabinets, stacked heat sources, and recirculating exhaust.</li> <li>Monitor every relevant zone and retain kernel logs across boots. Alert below the critical threshold so operators observe throttling before protection activates.</li> <li>Record ambient or inlet temperature alongside junction telemetry. Cross-sensor trends are more useful than isolated absolute values.</li> <li>Validate polling intervals against the platform’s worst-case temperature rise and use sensor interrupts where supported.</li> <li>After an airflow change, reproduce comparable workload and verify that no new <strong><code class="language-plaintext highlighter-rouge">critical temperature reached</code></strong> event appears.</li> <li>Escalate for hardware repair when critical trips persist under verified ambient conditions, readings show implausible discontinuities, or sensor disagreement cannot be explained by load and thermal design.</li> </ul> <p>The governing diagnostic rule is simple: trust the kernel event as proof of why the system shut down, but do not confuse proof of the shutdown mechanism with proof of the underlying thermal cause. That second conclusion requires correlated telemetry, physical inspection, controlled environmental testing, and recurrence analysis.</p> </div> </article> <br> <hr> <br> <h2 class="text-3xl font-semibold mb-4 mt-12">Enjoy Reading This Article?</h2> <p class="mb-2">Here are some more articles you might like to read next:</p> <ul class="list-disc pl-7 my-3 space-y-2 marker:text-[var(--global-theme-color)]"> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/routed-vpn-layer2-discovery/">Why Layer 2 Discovery Fails Across Routed VPNs</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/pppoe-mtu-mss-clamping/">PPPoE MTU, MSS Clamping, and Path MTU Black Holes</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/sfp-compatibility-not-voltage/">Why SFP Compatibility Problems Are Usually Not Voltage Problems</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/ikev2-auth-traffic-selectors/">Troubleshooting IKEv2 Authentication and Traffic Selector Failures</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/igmp-snooping-multicast-flooding/">IGMP Snooping, Querier Election, and Multicast Flooding</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/application-signature-allowlisting/">Why Application Signatures Fail as Allow-Only Firewall Policies</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/mab-embedded-devices/">Diagnosing MAC Authentication Bypass Failures on Embedded Ethernet Devices</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/diagnosing-ipsec-ike-failures/">Diagnosing IPsec IKE Failures with Packet-Flow Evidence</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/vlan-zone-segmentation/">Designing Secure VLAN Segmentation with Zone-Based Firewall Policy</a> </li> <li class="leading-relaxed"> <a class="underline decoration-1 hover:text-[var(--global-hover-color)]" href="/learn/2026/dhcpv6-prefix-delegation/">DHCPv6 Prefix Delegation: From WAN Lease to LAN Prefix Activation</a> </li> </ul> </div> </div> <footer class="sticky-bottom mt-5" role="contentinfo"> <div class="container"> © Copyright 2026 Harsh Verma. Built with <a href="https://jekyllrb.com/" target="_blank" rel="external nofollow noopener">Jekyll</a> and <a href="https://github.com/alshedivat/al-folio" target="_blank" rel="external nofollow noopener">al-folio</a>. Hosted on GitHub Pages. </div> </footer> <script>
   window.alFolio = {
     compatBootstrap: false
   };
@@ -75,7 +75,73 @@ ninja.data = [{
           handler: () => {
             window.location.href = "/certs/";
           },
-        },{id: "post-diagnosing-mac-authentication-bypass-failures-on-embedded-ethernet-devices",
+        },{id: "post-why-layer-2-discovery-fails-across-routed-vpns",
+        
+          title: "Why Layer 2 Discovery Fails Across Routed VPNs",
+        
+        description: "A standards-based analysis of why LLDP and other link-local discovery protocols do not traverse routed remote-access VPNs, and where proxy ARP and Layer 2 overlays fit.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/routed-vpn-layer2-discovery/";
+          
+        },
+      },{id: "post-pppoe-mtu-mss-clamping-and-path-mtu-black-holes",
+        
+          title: "PPPoE MTU, MSS Clamping, and Path MTU Black Holes",
+        
+        description: "A deep technical guide to how PPPoE overhead, Path MTU Discovery failures, and TCP MSS handling can cause selective application connectivity problems.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/pppoe-mtu-mss-clamping/";
+          
+        },
+      },{id: "post-why-sfp-compatibility-problems-are-usually-not-voltage-problems",
+        
+          title: "Why SFP Compatibility Problems Are Usually Not Voltage Problems",
+        
+        description: "A practical look at why SFP and SFP+ modules fail to initialize or link despite sharing the same nominal supply voltage.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/sfp-compatibility-not-voltage/";
+          
+        },
+      },{id: "post-troubleshooting-ikev2-authentication-and-traffic-selector-failures",
+        
+          title: "Troubleshooting IKEv2 Authentication and Traffic Selector Failures",
+        
+        description: "A standards-based guide to separating IKE_SA_INIT, IKE_AUTH, CHILD_SA, and traffic-selector failures when diagnosing site-to-site IPsec tunnels.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/ikev2-auth-traffic-selectors/";
+          
+        },
+      },{id: "post-igmp-snooping-querier-election-and-multicast-flooding",
+        
+          title: "IGMP Snooping, Querier Election, and Multicast Flooding",
+        
+        description: "A standards-based analysis of how IGMP snooping builds multicast forwarding state, how querier election sustains that state, and why failures cause Layer 2 multicast flooding.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/igmp-snooping-multicast-flooding/";
+          
+        },
+      },{id: "post-why-application-signatures-fail-as-allow-only-firewall-policies",
+        
+          title: "Why Application Signatures Fail as Allow-Only Firewall Policies",
+        
+        description: "A technical analysis of why DPI application signatures are effective for blocking but incomplete for dependency-aware allowlisting in modern encrypted applications.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/learn/2026/application-signature-allowlisting/";
+          
+        },
+      },{id: "post-diagnosing-mac-authentication-bypass-failures-on-embedded-ethernet-devices",
         
           title: "Diagnosing MAC Authentication Bypass Failures on Embedded Ethernet Devices",
         
