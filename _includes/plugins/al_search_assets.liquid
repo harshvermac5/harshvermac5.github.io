@@ -1,0 +1,10 @@
+{% comment %}Site override: exclude homepage feedback from the search results.{% endcomment %}
+{% al_search_assets %}
+<script>
+  {
+    const search = document.querySelector('ninja-keys');
+    if (search && Array.isArray(search.data)) {
+      search.data = search.data.filter((entry) => !entry.id.startsWith('testimonials-'));
+    }
+  }
+</script>

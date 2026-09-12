@@ -190,6 +190,8 @@ newsletter:
 # -----------------------------------------------------------------------------
 
 collections:
+  testimonials:
+    output: false
   books:
     output: true
   news:
@@ -221,6 +223,7 @@ kramdown:
 # Includes & excludes
 include: ["_pages"]
 exclude:
+  - TESTIMONIALS_GUIDE.md
   - .agents/
   - .claude/
   - .codex/

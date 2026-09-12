@@ -1,4 +1,64 @@
 (() => {
+  document.querySelectorAll('[data-feedback-carousel]').forEach((carousel) => {
+    const slides = [...carousel.querySelectorAll('[data-feedback-slide]')];
+    const controls = carousel.querySelector('.feedback-controls');
+    let current = 0;
+    let timer;
+    let transitioning = false;
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+    let paused = reducedMotion.matches;
+    const pauseButton = carousel.querySelector('[data-feedback-pause]');
+    const schedule = () => {
+      clearTimeout(timer);
+      if (slides.length > 1 && !paused && !document.hidden && !carousel.matches(':hover') && !carousel.contains(document.activeElement)) {
+        timer = setTimeout(() => change(1), 6000);
+      }
+    };
+    const render = () => {
+      slides.forEach((slide, index) => { slide.hidden = index !== current; });
+      carousel.querySelector('[data-feedback-count]').textContent = `${current + 1} of ${slides.length}`;
+    };
+    const change = async (direction) => {
+      if (transitioning) return;
+      transitioning = true;
+      clearTimeout(timer);
+      const fade = async (slide, from, to) => {
+        if (!reducedMotion.matches && slide.animate) {
+          await slide.animate([{ opacity: from }, { opacity: to }], { duration: 250, easing: 'ease-in-out' }).finished;
+        }
+      };
+      await fade(slides[current], 1, 0);
+      current = (current + direction + slides.length) % slides.length;
+      render();
+      await fade(slides[current], 0, 1);
+      transitioning = false;
+      schedule();
+    };
+    if (slides.length > 1) {
+      controls.hidden = false;
+      carousel.querySelector('[data-feedback-prev]').addEventListener('click', () => {
+        change(-1);
+      });
+      carousel.querySelector('[data-feedback-next]').addEventListener('click', () => {
+        change(1);
+      });
+      const updatePause = () => {
+        pauseButton.textContent = paused ? 'Play' : 'Pause';
+        pauseButton.setAttribute('aria-label', paused ? 'Start automatic feedback rotation' : 'Pause automatic feedback rotation');
+        carousel.querySelector('[data-feedback-count]').setAttribute('aria-live', paused ? 'polite' : 'off');
+        schedule();
+      };
+      pauseButton.addEventListener('click', () => { paused = !paused; updatePause(); });
+      reducedMotion.addEventListener('change', () => { paused = reducedMotion.matches; updatePause(); });
+      carousel.addEventListener('mouseenter', () => clearTimeout(timer));
+      carousel.addEventListener('mouseleave', schedule);
+      carousel.addEventListener('focusin', () => clearTimeout(timer));
+      carousel.addEventListener('focusout', () => setTimeout(schedule, 0));
+      document.addEventListener('visibilitychange', schedule);
+      updatePause();
+    }
+    render();
+  });
   const homepage = document.querySelector(".portfolio-site");
   const navbarContainer = document.querySelector("#navbar > .container");
 

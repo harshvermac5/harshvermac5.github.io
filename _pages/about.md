@@ -139,6 +139,29 @@ nav: false
 
   </section>
 
+  {% assign feedback_entries = site.testimonials | where: 'approved', true | sort: 'order' %}
+  {% if feedback_entries.size > 0 %}
+  <section class="portfolio-section" aria-labelledby="feedback-title" data-feedback-carousel>
+    <div class="section-heading">
+      <p class="eyebrow">Customer feedback</p>
+      <h2 id="feedback-title">Support that makes a difference.</h2>
+    </div>
+    {% for entry in feedback_entries %}
+    <article class="feedback-card" data-feedback-slide>
+      <p class="eyebrow">{{ entry.focus | escape }}</p>
+      <div class="feedback-copy">{{ entry.content | markdownify }}</div>
+      <p class="feedback-attribution">Anonymous customer feedback · Summary</p>
+    </article>
+    {% endfor %}
+    <div class="feedback-controls" hidden>
+      <button type="button" data-feedback-prev aria-label="Previous feedback">←</button>
+      <span data-feedback-count aria-live="polite"></span>
+      <button type="button" data-feedback-next aria-label="Next feedback">→</button>
+      <button type="button" data-feedback-pause aria-label="Pause automatic feedback rotation">Pause</button>
+    </div>
+  </section>
+  {% endif %}
+
   <section class="portfolio-section split-section" aria-labelledby="expertise-title">
     <div class="section-heading">
       <p class="eyebrow">Technical focus</p>
