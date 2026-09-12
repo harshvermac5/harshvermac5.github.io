@@ -9,6 +9,91 @@
   --portfolio-shadow: 0 1.2rem 3rem rgba(15, 31, 50, 0.08);
 }
 
+.feedback-card {
+  background: var(--portfolio-surface);
+  border: 1px solid var(--portfolio-line);
+  border-radius: var(--portfolio-radius);
+  padding: clamp(1.5rem, 5vw, 3rem);
+}
+.feedback-card[hidden], .feedback-controls[hidden] { display: none; }
+.feedback-copy { font-size: clamp(1.2rem, 3vw, 1.8rem); line-height: 1.5; }
+.feedback-attribution { color: var(--portfolio-muted); margin-bottom: 0; font-size: 0.85rem; }
+.feedback-controls { display: flex; align-items: center; justify-content: center; gap: 1rem; margin-top: 1rem; }
+.feedback-controls button { background: var(--portfolio-surface); color: var(--portfolio-accent); border: 1px solid var(--portfolio-line); border-radius: 50%; width: 44px; height: 44px; cursor: pointer; }
+.feedback-controls [data-feedback-pause] { width: auto; padding: 0 1rem; border-radius: 999px; }
+
+/* Keep long search-result titles inside the search modal. */
+ninja-keys::part(ninja-action) {
+  box-sizing: border-box;
+  max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
+}
+
+/* Use the complete mobile navbar layout until the full menu has enough room. */
+@media (max-width: 644px) {
+  #navbar.navbar-expand-sm > .container {
+    flex-wrap: wrap;
+  }
+
+  #navbar.navbar-expand-sm .navbar-toggler-main {
+    display: block;
+    margin-left: auto;
+  }
+
+  #navbar.navbar-expand-sm .navbar-collapse-main {
+    flex-basis: 100%;
+    text-align: left;
+    width: 100%;
+  }
+
+  #navbar.navbar-expand-sm .navbar-collapse-main:not(.show) {
+    display: none !important;
+  }
+
+  #navbar.navbar-expand-sm .navbar-collapse-main.show {
+    display: block !important;
+  }
+
+  #navbar.navbar-expand-sm .navbar-menu-list {
+    align-items: flex-start;
+    flex-direction: column;
+    margin-left: 0;
+    width: 100%;
+  }
+
+  #navbar.navbar-expand-sm .navbar-menu-list > .nav-item.dropdown {
+    width: 100%;
+  }
+
+  #navbar.navbar-expand-sm .dropdown-menu {
+    box-shadow: none;
+    margin-top: 0;
+    min-width: 100%;
+    position: static;
+    text-align: left;
+    width: 100%;
+  }
+
+  #navbar.navbar-expand-sm .dropdown-item {
+    text-align: left;
+    white-space: normal;
+  }
+}
+
+/* Match the theme's cascade layer so these override its responsive !important rules. */
+@layer components {
+  @media (max-width: 644px) {
+    #navbar.navbar-expand-sm .navbar-collapse-main:not(.show) {
+      display: none !important;
+    }
+
+    #navbar.navbar-expand-sm .navbar-collapse-main.show {
+      display: block !important;
+    }
+  }
+}
+
 .portfolio-site,
 .learning-hub,
 .certifications-page {

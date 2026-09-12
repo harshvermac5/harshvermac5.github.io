@@ -491,7 +491,47 @@ ninja.data = [{
             window.location.href = "/learn/2026/welcome-to-the-learning-hub/";
           
         },
-      },{
+      },{id: "testimonials-analytical-support",
+          title: 'Analytical support',
+          description: "",
+          section: "Testimonials",handler: () => {
+              window.location.href = "/testimonials/01-analysis/";
+            },},{id: "testimonials-helpful-explanation",
+          title: 'Helpful explanation',
+          description: "",
+          section: "Testimonials",handler: () => {
+              window.location.href = "/testimonials/02-explanation/";
+            },},{id: "testimonials-thoughtful-research",
+          title: 'Thoughtful research',
+          description: "",
+          section: "Testimonials",handler: () => {
+              window.location.href = "/testimonials/03-research/";
+            },},{id: "testimonials-support-experience",
+          title: 'Support experience',
+          description: "",
+          section: "Testimonials",handler: () => {
+              window.location.href = "/testimonials/04-support/";
+            },},{id: "testimonials-appreciation-after-resolution",
+          title: 'Appreciation after resolution',
+          description: "",
+          section: "Testimonials",handler: () => {
+              window.location.href = "/testimonials/05-resolution-support/";
+            },},{id: "testimonials-service-restored",
+          title: 'Service restored',
+          description: "",
+          section: "Testimonials",handler: () => {
+              window.location.href = "/testimonials/06-service-restored/";
+            },},{id: "testimonials-resolution-confirmed",
+          title: 'Resolution confirmed',
+          description: "",
+          section: "Testimonials",handler: () => {
+              window.location.href = "/testimonials/07-confirmed-resolution/";
+            },},{id: "testimonials-a-useful-new-direction",
+          title: 'A useful new direction',
+          description: "",
+          section: "Testimonials",handler: () => {
+              window.location.href = "/testimonials/08-productive-discussion/";
+            },},{
         id: 'social-email',
         title: 'email',
         section: 'Socials',
@@ -547,4 +587,11 @@ ninja.data = [{
       },
     },];
 
-</script> <script src="/assets/al_search/js/shortcut-key.js"></script> </body> </html>
+</script> <script src="/assets/al_search/js/shortcut-key.js"></script> <script>
+  {
+    const search = document.querySelector('ninja-keys');
+    if (search && Array.isArray(search.data)) {
+      search.data = search.data.filter((entry) => !entry.id.startsWith('testimonials-'));
+    }
+  }
+</script> </body> </html>
