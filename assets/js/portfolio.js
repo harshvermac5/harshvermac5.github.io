@@ -11,7 +11,7 @@
     const schedule = () => {
       clearTimeout(timer);
       if (slides.length > 1 && !paused && !document.hidden && !carousel.matches(':hover') && !carousel.contains(document.activeElement)) {
-        timer = setTimeout(() => change(1), 6000);
+        timer = setTimeout(() => change(1), 3000);
       }
     };
     const render = () => {

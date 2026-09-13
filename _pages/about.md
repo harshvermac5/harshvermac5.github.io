@@ -88,6 +88,12 @@ nav: false
         </div>
       </article>
 
+      <details class="experience-journey">
+        <summary class="experience-journey-toggle">
+          <span class="journey-show">View complete journey</span>
+          <span class="journey-hide">Show latest role only</span>
+          <span class="journey-chevron" aria-hidden="true">⌄</span>
+        </summary>
       <article class="experience-entry">
         <div class="experience-meta">
           <span class="experience-date">Mar 2025 — Jul 2026</span>
@@ -135,6 +141,7 @@ nav: false
           </ul>
         </div>
       </article>
+      </details>
     </div>
 
   </section>
