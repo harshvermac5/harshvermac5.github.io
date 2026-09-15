@@ -340,15 +340,20 @@ ninja-keys::part(ninja-action) {
 
 .experience-journey-toggle {
   align-items: center;
+  background: var(--portfolio-surface);
+  border: 1px solid var(--portfolio-line);
+  border-radius: 999px;
   color: var(--portfolio-accent);
   cursor: pointer;
   display: flex;
-  font-weight: 600;
-  gap: 0.65rem;
+  font-size: 1rem;
+  font-weight: 400;
   justify-content: center;
   list-style: none;
-  min-height: 48px;
-  padding: 0.75rem;
+  margin: 1rem auto 0;
+  min-height: 44px;
+  padding: 0 1rem;
+  width: fit-content;
 }
 
 .experience-journey-toggle::-webkit-details-marker { display: none; }
@@ -359,7 +364,6 @@ ninja-keys::part(ninja-action) {
 .experience-journey .journey-hide,
 .experience-journey[open] .journey-show { display: none; }
 .experience-journey[open] .journey-hide { display: inline; }
-.experience-journey[open] .journey-chevron { transform: rotate(180deg); }
 
 .experience-entry {
   border-bottom: 1px solid var(--portfolio-line);

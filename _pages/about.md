@@ -92,7 +92,6 @@ nav: false
         <summary class="experience-journey-toggle">
           <span class="journey-show">View complete journey</span>
           <span class="journey-hide">Show latest role only</span>
-          <span class="journey-chevron" aria-hidden="true">⌄</span>
         </summary>
       <article class="experience-entry">
         <div class="experience-meta">
