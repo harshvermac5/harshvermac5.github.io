@@ -588,6 +588,12 @@ ninja-keys::part(ninja-action) {
   overflow-x: auto;
 }
 
+/* Preserve readable text in both themes without changing active/disabled pages. */
+.hub-pagination .af-page-item:not(.active):not(.disabled) .af-page-link:hover,
+.hub-pagination .af-page-item:not(.active):not(.disabled) .af-page-link:focus-visible {
+  color: var(--global-text-color);
+}
+
 .hub-pagination-tools {
   align-items: center;
   display: flex;
